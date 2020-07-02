@@ -33,3 +33,4 @@ serde = { version = "1.0.114", default-features = false, features = [
   "derive",
   "alloc"
 ] }
+sha2 = "0.9.1"
