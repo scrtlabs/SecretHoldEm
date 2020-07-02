@@ -17,12 +17,12 @@ pub enum InitMsg {
 }
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
+    _deps: &mut Extern<S, A, Q>,
+    _env: Env,
     msg: InitMsg,
 ) -> InitResult {
     match msg {
-        InitMsg::CreateTableJoinPlayerA { seed } => Ok(InitResponse::default()),
+        InitMsg::CreateTableJoinPlayerA { seed: _ } => Ok(InitResponse::default()),
     }
 }
 
@@ -37,12 +37,12 @@ pub enum HandleMsg {
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
+    _deps: &mut Extern<S, A, Q>,
+    _env: Env,
     msg: HandleMsg,
 ) -> HandleResult {
     match msg {
-        HandleMsg::JoinPlayerB { seed } => Ok(HandleResponse::default()),
+        HandleMsg::JoinPlayerB { seed: _ } => Ok(HandleResponse::default()),
     }
 }
 
@@ -58,7 +58,7 @@ pub enum QueryMsg {
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    _deps: &Extern<S, A, Q>,
     _msg: QueryMsg,
 ) -> QueryResult {
     match _msg {
