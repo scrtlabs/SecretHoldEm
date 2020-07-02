@@ -1,0 +1,35 @@
+[package]
+name = "secret-holdem"
+version = "0.0.1"
+authors = ["Assaf Morami <assaf.morami@gmail.com>"]
+edition = "2018"
+description = "A Texas hold 'em poker game implemented as a Secret Contract for the Secret Network"
+license = "MIT"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+panic = 'abort'
+incremental = false
+overflow-checks = true
+
+[features]
+default = ["backtraces"]
+backtraces = ["cosmwasm-std/backtraces"]
+
+[dependencies]
+cosmwasm-std = { git = "https://github.com/enigmampc/SecretNetwork", rev = "34475bbfeaab47a6b0f4db140044f1f945824100" }
+cosmwasm-storage = { git = "https://github.com/enigmampc/SecretNetwork", rev = "34475bbfeaab47a6b0f4db140044f1f945824100" }
+schemars = "0.7"
+serde = { version = "1.0.114", default-features = false, features = [
+  "derive",
+  "alloc"
+] }
