@@ -1,8 +1,7 @@
 use bincode;
 use cosmwasm_std::{
     generic_err, Api, Binary, CanonicalAddr, Env, Extern, HandleResponse, HandleResult, HumanAddr,
-    InitResponse, InitResult, MigrateResponse, Querier, QueryResponse, QueryResult, StdResult,
-    Storage,
+    InitResponse, InitResult, MigrateResponse, Querier, QueryResult, StdResult, Storage,
 };
 use rand::{seq::SliceRandom, SeedableRng};
 use rand_chacha::ChaChaRng;
