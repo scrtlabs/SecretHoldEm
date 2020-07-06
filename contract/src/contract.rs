@@ -33,12 +33,12 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct Table {
     player_a: HumanAddr,
-    player_a_wallet: u64,
-    player_a_bet: u64,
+    player_a_wallet: i64,
+    player_a_bet: i64,
 
     player_b: HumanAddr,
-    player_b_wallet: u64,
-    player_b_bet: u64,
+    player_b_wallet: i64,
+    player_b_bet: i64,
 
     starter: HumanAddr,
     turn: HumanAddr, // round ends if after a bet: starter != turn && player_a_bet == player_b_bet
@@ -56,6 +56,8 @@ enum Stage {
     River,
     Ended { is_draw: bool, winner: HumanAddr },
 }
+
+const MAX_CREDIT: i64 = 1_000_000;
 
 // indexes of cards in the deck
 const PLAYER_A_FIRST_CARD: usize = 0;
@@ -76,7 +78,7 @@ const RIVER_CARD: usize = 11;
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
     Join { secret: u64 },
-    Raise { amount: u64 },
+    Raise { amount: u32 },
     Call {},
     Fold {},
     Check {},
@@ -137,8 +139,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 player_a: a_human_addr.clone(),
                 player_b: b_human_addr.clone(),
 
-                player_a_wallet: 1_000_000,
-                player_b_wallet: 1_000_000,
+                player_a_wallet: MAX_CREDIT,
+                player_b_wallet: MAX_CREDIT,
 
                 player_a_bet: 0,
                 player_b_bet: 0,
@@ -181,6 +183,52 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             };
 
             let me = deps.api.human_address(&env.message.sender).unwrap();
+
+            if me != table.player_a && me != table.player_b {
+                return Err(generic_err("You are not a player, go away!"));
+            }
+
+            if me != table.turn {
+                return Err(generic_err("It's not your turn."));
+            }
+
+            if me == table.player_a {
+                if table.player_a_bet >= table.player_b_bet {
+                    return Err(generic_err(
+                        "You cannot Call, your bet is bigger or equals to the other player's bet.",
+                    ));
+                }
+                table.player_a_bet = table.player_b_bet;
+                table.player_a_wallet = MAX_CREDIT - table.player_a_bet;
+                if table.player_a_wallet < 0 {
+                    table.player_a_wallet = 0;
+                    table.player_a_bet = MAX_CREDIT;
+                }
+
+                table.turn = table.player_b.clone();
+            } else {
+                if table.player_b_bet >= table.player_a_bet {
+                    return Err(generic_err(
+                        "You cannot Call, your bet is bigger or equals to the other player's bet.",
+                    ));
+                }
+                table.player_b_bet = table.player_a_bet;
+                table.player_b_wallet = MAX_CREDIT - table.player_b_bet;
+                if table.player_b_wallet < 0 {
+                    table.player_b_wallet = 0;
+                    table.player_b_bet = MAX_CREDIT;
+                }
+                table.turn = table.player_a.clone();
+            }
+
+            if table.turn == table.starter {
+                // go to next stage
+                table.stage = next(table.stage);
+            }
+
+            let table_bytes = bincode::serialize(&table).unwrap();
+            deps.storage.set(b"table", &table_bytes);
+
             return Ok(HandleResponse::default());
         }
         HandleMsg::Fold {} => {
@@ -271,7 +319,10 @@ fn next(s: Stage) -> Stage {
         Stage::Flop => Stage::Turn,
         Stage::Turn => Stage::River,
         Stage::River => todo!(), // find winner
-        Stage::Ended { is_draw, winner } => s,
+        Stage::Ended { is_draw, winner } => Stage::Ended {
+            winner: winner.clone(),
+            is_draw: is_draw,
+        },
     }
 }
 
