@@ -6,9 +6,10 @@ use cosmwasm_std::{
 };
 use rand::{seq::SliceRandom, SeedableRng};
 use rand_chacha::ChaChaRng;
-use rs_poker::core::{Card, Deck, Hand};
+use rs_poker::core::{Card, Deck, Rankable};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json;
 use sha2::{Digest, Sha256};
 
 /////////////////////////////// Init ///////////////////////////////
@@ -48,13 +49,15 @@ struct Table {
     cards: Vec<Card>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 enum Stage {
     PreFlop,
     Flop,
     Turn,
     River,
-    Ended { is_draw: bool, winner: HumanAddr },
+    EndedWinnerA,
+    EndedWinnerB,
+    EndedDraw,
 }
 
 const MAX_CREDIT: i64 = 1_000_000;
@@ -161,10 +164,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             let mut table: Table =
                 bincode::deserialize(&deps.storage.get(b"table").unwrap()).unwrap();
             match table.stage {
-                Stage::Ended {
-                    is_draw: _,
-                    winner: _,
-                } => return Err(generic_err("The game is over.")),
+                Stage::EndedWinnerA => return Err(generic_err("The game is over.")),
+                Stage::EndedWinnerB => return Err(generic_err("The game is over.")),
+                Stage::EndedDraw => return Err(generic_err("The game is over.")),
                 _ => { /* continue */ }
             };
 
@@ -211,10 +213,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             let mut table: Table =
                 bincode::deserialize(&deps.storage.get(b"table").unwrap()).unwrap();
             match table.stage {
-                Stage::Ended {
-                    is_draw: _,
-                    winner: _,
-                } => return Err(generic_err("The game is over.")),
+                Stage::EndedWinnerA => return Err(generic_err("The game is over.")),
+                Stage::EndedWinnerB => return Err(generic_err("The game is over.")),
+                Stage::EndedDraw => return Err(generic_err("The game is over.")),
                 _ => { /* continue */ }
             };
 
@@ -260,8 +261,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             }
 
             if table.turn == table.starter {
-                // go to next stage
-                table.stage = next(table.stage);
+                table.goto_next_stage(deps);
             }
 
             let table_bytes = bincode::serialize(&table).unwrap();
@@ -273,10 +273,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             let mut table: Table =
                 bincode::deserialize(&deps.storage.get(b"table").unwrap()).unwrap();
             match table.stage {
-                Stage::Ended {
-                    is_draw: _,
-                    winner: _,
-                } => return Err(generic_err("The game is over.")),
+                Stage::EndedWinnerA => return Err(generic_err("The game is over.")),
+                Stage::EndedWinnerB => return Err(generic_err("The game is over.")),
+                Stage::EndedDraw => return Err(generic_err("The game is over.")),
                 _ => { /* continue */ }
             };
 
@@ -291,15 +290,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             }
 
             if me == table.player_a {
-                table.stage = Stage::Ended {
-                    is_draw: false,
-                    winner: table.player_b.clone(),
-                }
+                table.stage = Stage::EndedWinnerB;
             } else {
-                table.stage = Stage::Ended {
-                    is_draw: false,
-                    winner: table.player_a.clone(),
-                }
+                table.stage = Stage::EndedWinnerA;
             }
 
             let table_bytes = bincode::serialize(&table).unwrap();
@@ -311,10 +304,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             let mut table: Table =
                 bincode::deserialize(&deps.storage.get(b"table").unwrap()).unwrap();
             match table.stage {
-                Stage::Ended {
-                    is_draw: _,
-                    winner: _,
-                } => return Err(generic_err("The game is over.")),
+                Stage::EndedWinnerA => return Err(generic_err("The game is over.")),
+                Stage::EndedWinnerB => return Err(generic_err("The game is over.")),
+                Stage::EndedDraw => return Err(generic_err("The game is over.")),
                 _ => { /* continue */ }
             };
 
@@ -339,8 +331,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             }
 
             if table.turn == table.starter {
-                // go to next stage
-                table.stage = next(table.stage);
+                table.goto_next_stage(deps);
             }
 
             let table_bytes = bincode::serialize(&table).unwrap();
@@ -351,16 +342,70 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-fn next(s: Stage) -> Stage {
-    match s {
-        Stage::PreFlop => Stage::Flop,
-        Stage::Flop => Stage::Turn,
-        Stage::Turn => Stage::River,
-        Stage::River => todo!(), // find winner
-        Stage::Ended { is_draw, winner } => Stage::Ended {
-            winner: winner.clone(),
-            is_draw: is_draw,
-        },
+impl Table {
+    fn goto_next_stage<S: Storage, A: Api, Q: Querier>(&mut self, deps: &mut Extern<S, A, Q>) {
+        let deck_bytes = deps.storage.get(b"deck").unwrap();
+        let deck: Vec<Card> = bincode::deserialize(&deck_bytes).unwrap();
+
+        match self.stage {
+            Stage::PreFlop => {
+                self.stage = Stage::Flop;
+                self.cards = vec![
+                    deck[FLOP_FIRST_CARD],
+                    deck[FLOP_SECOND_CARD],
+                    deck[FLOP_THIRD_CARD],
+                ];
+            }
+            Stage::Flop => {
+                self.stage = Stage::Turn;
+                self.cards = vec![
+                    deck[FLOP_FIRST_CARD],
+                    deck[FLOP_SECOND_CARD],
+                    deck[FLOP_THIRD_CARD],
+                    deck[TURN_CARD],
+                ];
+            }
+            Stage::Turn => {
+                self.stage = Stage::River;
+                self.cards = vec![
+                    deck[FLOP_FIRST_CARD],
+                    deck[FLOP_SECOND_CARD],
+                    deck[FLOP_THIRD_CARD],
+                    deck[TURN_CARD],
+                    deck[RIVER_CARD],
+                ];
+            }
+            Stage::River => {
+                let mut player_a_hand = self.cards.clone();
+                player_a_hand.extend(vec![deck[PLAYER_A_FIRST_CARD], deck[PLAYER_A_SECOND_CARD]]);
+                let player_a_rank = player_a_hand.rank();
+
+                let mut player_b_hand = self.cards.clone();
+                player_b_hand.extend(vec![deck[PLAYER_B_FIRST_CARD], deck[PLAYER_B_SECOND_CARD]]);
+                let player_b_rank = player_b_hand.rank();
+
+                if player_a_rank > player_b_rank {
+                    self.stage = Stage::EndedWinnerA;
+                } else if player_a_rank < player_b_rank {
+                    self.stage = Stage::EndedWinnerB;
+                } else {
+                    self.stage = Stage::EndedDraw;
+                }
+                return;
+            }
+            _ => return,
+        }
+
+        if self.player_a_wallet == 0 || self.player_b_wallet == 0 {
+            while self.stage != Stage::EndedDraw
+                && self.stage != Stage::EndedWinnerA
+                && self.stage != Stage::EndedWinnerB
+            {
+                self.goto_next_stage(deps);
+            }
+            // TODO find winner
+            return;
+        }
     }
 }
 
@@ -379,7 +424,14 @@ pub enum QueryMsg {
 pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
     match msg {
         QueryMsg::GetPublicData {} => {
-            return Ok(QueryResponse::default());
+            let table: Table = bincode::deserialize(&deps.storage.get(b"table").unwrap()).unwrap();
+            return Ok(Binary(
+                serde_json::to_string(&table)
+                    .unwrap()
+                    .as_str()
+                    .as_bytes()
+                    .to_vec(),
+            ));
         }
         QueryMsg::GetMyHand { secret } => {
             let secret_bytes = secret.to_be_bytes().to_vec();
