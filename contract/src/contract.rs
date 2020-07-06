@@ -1,7 +1,8 @@
 use bincode;
 use cosmwasm_std::{
-    generic_err, Api, Binary, Env, Extern, HandleResponse, HandleResult, InitResponse, InitResult,
-    MigrateResponse, Querier, QueryResponse, QueryResult, StdResult, Storage,
+    generic_err, Api, Binary, CanonicalAddr, Env, Extern, HandleResponse, HandleResult, HumanAddr,
+    InitResponse, InitResult, MigrateResponse, Querier, QueryResponse, QueryResult, StdResult,
+    Storage,
 };
 use rand::{seq::SliceRandom, SeedableRng};
 use rand_chacha::ChaChaRng;
@@ -11,33 +12,74 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 /////////////////////////////// Init ///////////////////////////////
-// creates a game and joins as the first player
+//
 ////////////////////////////////////////////////////////////////////
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum InitMsg {
-    CreateTable {},
-}
+pub struct InitMsg {}
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     _deps: &mut Extern<S, A, Q>,
     _env: Env,
-    msg: InitMsg,
+    _msg: InitMsg,
 ) -> InitResult {
-    match msg {
-        InitMsg::CreateTable {} => Ok(InitResponse::default()),
-    }
+    Ok(InitResponse::default())
 }
 
 /////////////////////////////// Handle ///////////////////////////////
 //
 //////////////////////////////////////////////////////////////////////
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct Table {
+    player_a: HumanAddr,
+    player_a_wallet: u64,
+    player_a_bet: u64,
+
+    player_b: HumanAddr,
+    player_b_wallet: u64,
+    player_b_bet: u64,
+
+    starter: HumanAddr,
+    turn: HumanAddr, // round ends if after a bet: starter != turn && player_a_bet == player_b_bet
+
+    stage: Stage,
+
+    cards: Vec<Card>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+enum Stage {
+    PreFlop,
+    Flop,
+    Turn,
+    River,
+    Ended { is_draw: bool, winner: HumanAddr },
+}
+
+// indexes of cards in the deck
+const PLAYER_A_FIRST_CARD: usize = 0;
+const PLAYER_B_FIRST_CARD: usize = 1;
+const PLAYER_A_SECOND_CARD: usize = 2;
+const PLAYER_B_SECOND_CARD: usize = 3;
+// Pre-flop betting round - burn index 4
+const FLOP_FIRST_CARD: usize = 5;
+const FLOP_SECOND_CARD: usize = 6;
+const FLOP_THIRD_CARD: usize = 7;
+// Flop betting round - burn index 8
+const TURN_CARD: usize = 9;
+// Turn betting round - burn index 10
+const RIVER_CARD: usize = 11;
+// River betting round
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
     Join { secret: u64 },
+    Raise { amount: u64 },
+    Call {},
+    Fold {},
+    Check {},
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
@@ -58,13 +100,13 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             let player_secret = &secret.to_be_bytes();
 
             if player_a.is_none() {
-                // player a
+                // player a - just store
                 deps.storage.set(b"player_a", player_name);
                 deps.storage.set(b"player_a_secret", player_secret);
                 return Ok(HandleResponse::default());
             }
 
-            // player b - can now shuffle the deck
+            // player b - we can now shuffle the deck
 
             deps.storage.set(b"player_b", player_name);
             deps.storage.set(b"player_b_secret", player_secret);
@@ -73,17 +115,50 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
             let mut combined_secret = player_a_secret.clone();
             combined_secret.extend(player_secret);
-            let shuffle_seed: [u8; 32] = Sha256::digest(&combined_secret).into();
+            let seed: [u8; 32] = Sha256::digest(&combined_secret).into();
 
-            let mut rng = ChaChaRng::from_seed(shuffle_seed);
+            let mut rng = ChaChaRng::from_seed(seed);
             let mut deck: Vec<Card> = Deck::default().into_iter().collect();
             deck.shuffle(&mut rng);
 
             let deck_bytes = bincode::serialize(&deck).unwrap();
             deps.storage.set(b"deck", &deck_bytes);
 
+            let a_human_addr = deps
+                .api
+                .human_address(&CanonicalAddr(Binary(player_a.expect("Error"))))
+                .unwrap();
+            let b_human_addr = deps
+                .api
+                .human_address(&CanonicalAddr(Binary(player_name.to_vec())))
+                .unwrap();
+
+            let table = Table {
+                player_a: a_human_addr.clone(),
+                player_b: b_human_addr.clone(),
+
+                player_a_wallet: 1_000_000,
+                player_b_wallet: 1_000_000,
+
+                player_a_bet: 0,
+                player_b_bet: 0,
+
+                stage: Stage::PreFlop,
+                starter: a_human_addr.clone(),
+                turn: a_human_addr.clone(),
+
+                cards: vec![],
+            };
+
+            let table_bytes = bincode::serialize(&table).unwrap();
+            deps.storage.set(b"table", &table_bytes);
+
             return Ok(HandleResponse::default());
         }
+        HandleMsg::Raise { amount } => {}
+        HandleMsg::Call {} => {}
+        HandleMsg::Fold {} => {}
+        HandleMsg::Check {} => {}
     }
 }
 
@@ -96,12 +171,12 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     GetMyHand { secret: u64 },
-    GetAllPublicData {},
+    GetPublicData {},
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
     match msg {
-        QueryMsg::GetAllPublicData {} => {
+        QueryMsg::GetPublicData {} => {
             return Ok(QueryResponse::default());
         }
         QueryMsg::GetMyHand { secret } => {
@@ -127,11 +202,11 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
             let first_card_index;
             let second_card_index;
             if secret_bytes == player_a_secret {
-                first_card_index = 0;
-                second_card_index = 2;
+                first_card_index = PLAYER_A_FIRST_CARD;
+                second_card_index = PLAYER_A_SECOND_CARD;
             } else if secret_bytes == player_b_secret {
-                first_card_index = 1;
-                second_card_index = 3;
+                first_card_index = PLAYER_B_FIRST_CARD;
+                second_card_index = PLAYER_B_SECOND_CARD;
             } else {
                 return Err(generic_err("You are not a player, go away!"));
             }
@@ -140,8 +215,8 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
             let deck: Vec<Card> = bincode::deserialize(&deck_bytes)
                 .map_err(|e| generic_err(format!("Could not deserialze deck: {:?}", e)))?;
 
-            let first_card: Card = (&deck)[first_card_index];
-            let second_card: Card = (&deck)[second_card_index];
+            let first_card: Card = deck[first_card_index];
+            let second_card: Card = deck[second_card_index];
 
             return Ok(Binary(vec![
                 first_card.value as u8,
