@@ -78,7 +78,7 @@ const RIVER_CARD: usize = 11;
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
     Join { secret: u64 },
-    Raise { amount: u32 },
+    Raise { amount: i64 },
     Call {},
     Fold {},
     Check {},
@@ -165,21 +165,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                     is_draw: _,
                     winner: _,
                 } => return Err(generic_err("The game is over.")),
-                _ => {}
-            };
-
-            let me = deps.api.human_address(&env.message.sender).unwrap();
-            return Ok(HandleResponse::default());
-        }
-        HandleMsg::Call {} => {
-            let mut table: Table =
-                bincode::deserialize(&deps.storage.get(b"table").unwrap()).unwrap();
-            match table.stage {
-                Stage::Ended {
-                    is_draw: _,
-                    winner: _,
-                } => return Err(generic_err("The game is over.")),
-                _ => {}
+                _ => { /* continue */ }
             };
 
             let me = deps.api.human_address(&env.message.sender).unwrap();
@@ -193,6 +179,57 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             }
 
             if me == table.player_a {
+                // I'm player A
+                table.player_a_bet = table.player_b_bet + amount;
+                table.player_a_wallet = MAX_CREDIT - table.player_a_bet;
+                if table.player_a_wallet < 0 {
+                    return Err(generic_err(
+                        "You don't have enough credits to Raise by that much.",
+                    ));
+                }
+
+                table.turn = table.player_b.clone();
+            } else {
+                // I'm player B
+                table.player_b_bet = table.player_a_bet + amount;
+                table.player_b_wallet = MAX_CREDIT - table.player_b_bet;
+                if table.player_b_wallet < 0 {
+                    return Err(generic_err(
+                        "You don't have enough credits to Raise by that much.",
+                    ));
+                }
+
+                table.turn = table.player_a.clone();
+            }
+
+            let table_bytes = bincode::serialize(&table).unwrap();
+            deps.storage.set(b"table", &table_bytes);
+
+            return Ok(HandleResponse::default());
+        }
+        HandleMsg::Call {} => {
+            let mut table: Table =
+                bincode::deserialize(&deps.storage.get(b"table").unwrap()).unwrap();
+            match table.stage {
+                Stage::Ended {
+                    is_draw: _,
+                    winner: _,
+                } => return Err(generic_err("The game is over.")),
+                _ => { /* continue */ }
+            };
+
+            let me = deps.api.human_address(&env.message.sender).unwrap();
+
+            if me != table.player_a && me != table.player_b {
+                return Err(generic_err("You are not a player, go away!"));
+            }
+
+            if me != table.turn {
+                return Err(generic_err("It's not your turn."));
+            }
+
+            if me == table.player_a {
+                // I'm player A
                 if table.player_a_bet >= table.player_b_bet {
                     return Err(generic_err(
                         "You cannot Call, your bet is bigger or equals to the other player's bet.",
@@ -207,6 +244,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
                 table.turn = table.player_b.clone();
             } else {
+                // I'm player B
                 if table.player_b_bet >= table.player_a_bet {
                     return Err(generic_err(
                         "You cannot Call, your bet is bigger or equals to the other player's bet.",
@@ -239,7 +277,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                     is_draw: _,
                     winner: _,
                 } => return Err(generic_err("The game is over.")),
-                _ => {}
+                _ => { /* continue */ }
             };
 
             let me = deps.api.human_address(&env.message.sender).unwrap();
@@ -277,7 +315,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                     is_draw: _,
                     winner: _,
                 } => return Err(generic_err("The game is over.")),
-                _ => {}
+                _ => { /* continue */ }
             };
 
             let me = deps.api.human_address(&env.message.sender).unwrap();
