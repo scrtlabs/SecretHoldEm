@@ -155,10 +155,123 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
             return Ok(HandleResponse::default());
         }
-        HandleMsg::Raise { amount } => {}
-        HandleMsg::Call {} => {}
-        HandleMsg::Fold {} => {}
-        HandleMsg::Check {} => {}
+        HandleMsg::Raise { amount } => {
+            let mut table: Table =
+                bincode::deserialize(&deps.storage.get(b"table").unwrap()).unwrap();
+            match table.stage {
+                Stage::Ended {
+                    is_draw: _,
+                    winner: _,
+                } => return Err(generic_err("The game is over.")),
+                _ => {}
+            };
+
+            let me = deps.api.human_address(&env.message.sender).unwrap();
+            return Ok(HandleResponse::default());
+        }
+        HandleMsg::Call {} => {
+            let mut table: Table =
+                bincode::deserialize(&deps.storage.get(b"table").unwrap()).unwrap();
+            match table.stage {
+                Stage::Ended {
+                    is_draw: _,
+                    winner: _,
+                } => return Err(generic_err("The game is over.")),
+                _ => {}
+            };
+
+            let me = deps.api.human_address(&env.message.sender).unwrap();
+            return Ok(HandleResponse::default());
+        }
+        HandleMsg::Fold {} => {
+            let mut table: Table =
+                bincode::deserialize(&deps.storage.get(b"table").unwrap()).unwrap();
+            match table.stage {
+                Stage::Ended {
+                    is_draw: _,
+                    winner: _,
+                } => return Err(generic_err("The game is over.")),
+                _ => {}
+            };
+
+            let me = deps.api.human_address(&env.message.sender).unwrap();
+
+            if me != table.player_a && me != table.player_b {
+                return Err(generic_err("You are not a player, go away!"));
+            }
+
+            if me != table.turn {
+                return Err(generic_err("It's not your turn."));
+            }
+
+            if me == table.player_a {
+                table.stage = Stage::Ended {
+                    is_draw: false,
+                    winner: table.player_b.clone(),
+                }
+            } else {
+                table.stage = Stage::Ended {
+                    is_draw: false,
+                    winner: table.player_a.clone(),
+                }
+            }
+
+            let table_bytes = bincode::serialize(&table).unwrap();
+            deps.storage.set(b"table", &table_bytes);
+
+            return Ok(HandleResponse::default());
+        }
+        HandleMsg::Check {} => {
+            let mut table: Table =
+                bincode::deserialize(&deps.storage.get(b"table").unwrap()).unwrap();
+            match table.stage {
+                Stage::Ended {
+                    is_draw: _,
+                    winner: _,
+                } => return Err(generic_err("The game is over.")),
+                _ => {}
+            };
+
+            let me = deps.api.human_address(&env.message.sender).unwrap();
+
+            if me != table.player_a && me != table.player_b {
+                return Err(generic_err("You are not a player, go away!"));
+            }
+
+            if me != table.turn {
+                return Err(generic_err("It's not your turn."));
+            }
+
+            if table.player_a_bet != table.player_b_bet {
+                return Err(generic_err("You cannot check, must Call, Raise or Fold."));
+            }
+
+            if me == table.player_a {
+                table.turn = table.player_b.clone();
+            } else {
+                table.turn = table.player_a.clone();
+            }
+
+            if table.turn == table.starter {
+                // go to next stage
+                table.stage = next(table.stage);
+            }
+
+            let table_bytes = bincode::serialize(&table).unwrap();
+            deps.storage.set(b"table", &table_bytes);
+
+            return Ok(HandleResponse::default());
+        }
+    }
+}
+
+fn next(s: Stage) -> Stage {
+    match s {
+        Stage::PreFlop => Stage::Flop,
+        Stage::Flop => Stage::Turn,
+        Stage::Turn => Stage::River,
+        Stage::River => todo!(), // find winner
+        Stage::Ended { is_draw, winner } => s,
     }
 }
 
