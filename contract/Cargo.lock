@@ -234,6 +234,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rs_poker"
+version = "2.0.0-alpha.0"
+source = "git+https://github.com/enigmampc/rs-poker?rev=0fbdf0548dc0e7934c453d49b4ff86f15c89c7de#0fbdf0548dc0e7934c453d49b4ff86f15c89c7de"
+dependencies = [
+ "rand",
+ "serde",
+]
+
+[[package]]
 name = "rustc-demangle"
 version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -277,6 +286,7 @@ dependencies = [
  "cosmwasm-storage",
  "rand",
  "rand_chacha",
+ "rs_poker",
  "schemars",
  "serde",
  "sha2",

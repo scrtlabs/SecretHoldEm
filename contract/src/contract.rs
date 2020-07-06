@@ -5,6 +5,7 @@ use cosmwasm_std::{
 };
 use rand::{seq::SliceRandom, SeedableRng};
 use rand_chacha::ChaChaRng;
+use rs_poker::core::{Card, Deck, Hand};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -75,7 +76,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             let shuffle_seed: [u8; 32] = Sha256::digest(&combined_secret).into();
 
             let mut rng = ChaChaRng::from_seed(shuffle_seed);
-            let mut deck = get_new_deck();
+            let mut deck: Vec<Card> = Deck::default().into_iter().collect();
             deck.shuffle(&mut rng);
 
             let deck_bytes = bincode::serialize(&deck).unwrap();
@@ -139,14 +140,14 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
             let deck: Vec<Card> = bincode::deserialize(&deck_bytes)
                 .map_err(|e| generic_err(format!("Could not deserialze deck: {:?}", e)))?;
 
-            let first_card = (&deck)[first_card_index];
-            let second_card = (&deck)[second_card_index];
+            let first_card: Card = (&deck)[first_card_index];
+            let second_card: Card = (&deck)[second_card_index];
 
             return Ok(Binary(vec![
-                first_card.number as u8,
-                first_card.shape as u8,
-                second_card.number as u8,
-                second_card.shape as u8,
+                first_card.value as u8,
+                first_card.suit as u8,
+                second_card.value as u8,
+                second_card.suit as u8,
             ]));
         }
     }
@@ -167,249 +168,4 @@ pub fn migrate<S: Storage, A: Api, Q: Querier>(
     _msg: MigrateMsg,
 ) -> StdResult<MigrateResponse> {
     Ok(MigrateResponse::default())
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Copy)]
-struct Card {
-    pub number: Number,
-    pub shape: Shape,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Copy)]
-#[repr(u8)]
-enum Number {
-    Ace = 1,
-    Two,
-    Three,
-    Four,
-    Five,
-    Six,
-    Seven,
-    Eight,
-    Nine,
-    Ten,
-    Jack,
-    Queen,
-    King,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Copy)]
-#[repr(u8)]
-enum Shape {
-    Spades = 1,
-    Hearts,
-    Clubs,
-    Diamonds,
-}
-fn get_new_deck() -> Vec<Card> {
-    return vec![
-        Card {
-            number: Number::Ace,
-            shape: Shape::Clubs,
-        },
-        Card {
-            number: Number::Two,
-            shape: Shape::Clubs,
-        },
-        Card {
-            number: Number::Three,
-            shape: Shape::Clubs,
-        },
-        Card {
-            number: Number::Four,
-            shape: Shape::Clubs,
-        },
-        Card {
-            number: Number::Five,
-            shape: Shape::Clubs,
-        },
-        Card {
-            number: Number::Six,
-            shape: Shape::Clubs,
-        },
-        Card {
-            number: Number::Seven,
-            shape: Shape::Clubs,
-        },
-        Card {
-            number: Number::Eight,
-            shape: Shape::Clubs,
-        },
-        Card {
-            number: Number::Nine,
-            shape: Shape::Clubs,
-        },
-        Card {
-            number: Number::Ten,
-            shape: Shape::Clubs,
-        },
-        Card {
-            number: Number::Jack,
-            shape: Shape::Clubs,
-        },
-        Card {
-            number: Number::Queen,
-            shape: Shape::Clubs,
-        },
-        Card {
-            number: Number::King,
-            shape: Shape::Clubs,
-        },
-        Card {
-            number: Number::Ace,
-            shape: Shape::Hearts,
-        },
-        Card {
-            number: Number::Two,
-            shape: Shape::Hearts,
-        },
-        Card {
-            number: Number::Three,
-            shape: Shape::Hearts,
-        },
-        Card {
-            number: Number::Four,
-            shape: Shape::Hearts,
-        },
-        Card {
-            number: Number::Five,
-            shape: Shape::Hearts,
-        },
-        Card {
-            number: Number::Six,
-            shape: Shape::Hearts,
-        },
-        Card {
-            number: Number::Seven,
-            shape: Shape::Hearts,
-        },
-        Card {
-            number: Number::Eight,
-            shape: Shape::Hearts,
-        },
-        Card {
-            number: Number::Nine,
-            shape: Shape::Hearts,
-        },
-        Card {
-            number: Number::Ten,
-            shape: Shape::Hearts,
-        },
-        Card {
-            number: Number::Jack,
-            shape: Shape::Hearts,
-        },
-        Card {
-            number: Number::Queen,
-            shape: Shape::Hearts,
-        },
-        Card {
-            number: Number::King,
-            shape: Shape::Hearts,
-        },
-        Card {
-            number: Number::Ace,
-            shape: Shape::Spades,
-        },
-        Card {
-            number: Number::Two,
-            shape: Shape::Spades,
-        },
-        Card {
-            number: Number::Three,
-            shape: Shape::Spades,
-        },
-        Card {
-            number: Number::Four,
-            shape: Shape::Spades,
-        },
-        Card {
-            number: Number::Five,
-            shape: Shape::Spades,
-        },
-        Card {
-            number: Number::Six,
-            shape: Shape::Spades,
-        },
-        Card {
-            number: Number::Seven,
-            shape: Shape::Spades,
-        },
-        Card {
-            number: Number::Eight,
-            shape: Shape::Spades,
-        },
-        Card {
-            number: Number::Nine,
-            shape: Shape::Spades,
-        },
-        Card {
-            number: Number::Ten,
-            shape: Shape::Spades,
-        },
-        Card {
-            number: Number::Jack,
-            shape: Shape::Spades,
-        },
-        Card {
-            number: Number::Queen,
-            shape: Shape::Spades,
-        },
-        Card {
-            number: Number::King,
-            shape: Shape::Spades,
-        },
-        Card {
-            number: Number::Ace,
-            shape: Shape::Diamonds,
-        },
-        Card {
-            number: Number::Two,
-            shape: Shape::Diamonds,
-        },
-        Card {
-            number: Number::Three,
-            shape: Shape::Diamonds,
-        },
-        Card {
-            number: Number::Four,
-            shape: Shape::Diamonds,
-        },
-        Card {
-            number: Number::Five,
-            shape: Shape::Diamonds,
-        },
-        Card {
-            number: Number::Six,
-            shape: Shape::Diamonds,
-        },
-        Card {
-            number: Number::Seven,
-            shape: Shape::Diamonds,
-        },
-        Card {
-            number: Number::Eight,
-            shape: Shape::Diamonds,
-        },
-        Card {
-            number: Number::Nine,
-            shape: Shape::Diamonds,
-        },
-        Card {
-            number: Number::Ten,
-            shape: Shape::Diamonds,
-        },
-        Card {
-            number: Number::Jack,
-            shape: Shape::Diamonds,
-        },
-        Card {
-            number: Number::Queen,
-            shape: Shape::Diamonds,
-        },
-        Card {
-            number: Number::King,
-            shape: Shape::Diamonds,
-        },
-    ];
 }

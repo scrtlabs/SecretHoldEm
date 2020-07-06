@@ -37,3 +37,4 @@ sha2 = "0.9.1"
 rand_chacha = "0.2.2"
 rand = "0.7.3"
 bincode = "1.3.1"
+rs_poker = { git = "https://github.com/enigmampc/rs-poker", rev = "0fbdf0548dc0e7934c453d49b4ff86f15c89c7de" }
