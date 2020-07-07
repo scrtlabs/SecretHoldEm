@@ -18,3 +18,6 @@ clean:
 
 store: build
 	secretcli tx compute store contract.wasm.gz --from mykey -y --gas 10000000 --source "https://github.com/enigmampc/SecretHoldEm/blob/$(shell git show --oneline -s | cut -f 1 -d ' ')/contract/src/contract.rs" -b block
+
+sim-play: build
+	./sim.sh
