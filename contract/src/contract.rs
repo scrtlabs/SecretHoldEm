@@ -45,7 +45,10 @@ struct Table {
 
     stage: Stage,
 
-    cards: Vec<Card>,
+    community_cards: Vec<Card>,
+
+    player_a_hand: Vec<Card>,
+    player_b_hand: Vec<Card>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Eq, PartialEq)]
@@ -156,7 +159,10 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 starter: a_human_addr.clone(),
                 turn: a_human_addr.clone(),
 
-                cards: vec![],
+                community_cards: vec![],
+
+                player_a_hand: vec![],
+                player_b_hand: vec![],
             };
 
             let table_bytes = serde_json::to_vec(&table).unwrap();
@@ -357,7 +363,7 @@ impl Table {
         match self.stage {
             Stage::PreFlop => {
                 self.stage = Stage::Flop;
-                self.cards = vec![
+                self.community_cards = vec![
                     deck[FLOP_FIRST_CARD],
                     deck[FLOP_SECOND_CARD],
                     deck[FLOP_THIRD_CARD],
@@ -365,7 +371,7 @@ impl Table {
             }
             Stage::Flop => {
                 self.stage = Stage::Turn;
-                self.cards = vec![
+                self.community_cards = vec![
                     deck[FLOP_FIRST_CARD],
                     deck[FLOP_SECOND_CARD],
                     deck[FLOP_THIRD_CARD],
@@ -374,7 +380,7 @@ impl Table {
             }
             Stage::Turn => {
                 self.stage = Stage::River;
-                self.cards = vec![
+                self.community_cards = vec![
                     deck[FLOP_FIRST_CARD],
                     deck[FLOP_SECOND_CARD],
                     deck[FLOP_THIRD_CARD],
@@ -383,13 +389,15 @@ impl Table {
                 ];
             }
             Stage::River => {
-                let mut player_a_hand = self.cards.clone();
-                player_a_hand.extend(vec![deck[PLAYER_A_FIRST_CARD], deck[PLAYER_A_SECOND_CARD]]);
-                let player_a_rank = player_a_hand.rank();
+                let mut player_a_7_card_hand = self.community_cards.clone();
+                player_a_7_card_hand
+                    .extend(vec![deck[PLAYER_A_FIRST_CARD], deck[PLAYER_A_SECOND_CARD]]);
+                let player_a_rank = player_a_7_card_hand.rank();
 
-                let mut player_b_hand = self.cards.clone();
-                player_b_hand.extend(vec![deck[PLAYER_B_FIRST_CARD], deck[PLAYER_B_SECOND_CARD]]);
-                let player_b_rank = player_b_hand.rank();
+                let mut player_b_7_card_hand = self.community_cards.clone();
+                player_b_7_card_hand
+                    .extend(vec![deck[PLAYER_B_FIRST_CARD], deck[PLAYER_B_SECOND_CARD]]);
+                let player_b_rank = player_b_7_card_hand.rank();
 
                 if player_a_rank > player_b_rank {
                     self.stage = Stage::EndedWinnerA;
@@ -398,11 +406,15 @@ impl Table {
                 } else {
                     self.stage = Stage::EndedDraw;
                 }
+
+                self.player_a_hand = vec![deck[PLAYER_A_FIRST_CARD], deck[PLAYER_A_SECOND_CARD]];
+                self.player_b_hand = vec![deck[PLAYER_B_FIRST_CARD], deck[PLAYER_B_SECOND_CARD]];
                 return;
             }
             _ => return,
         }
 
+        // Turn ended with both player out of cash, just play it out
         if self.player_a_wallet == 0 || self.player_b_wallet == 0 {
             while self.stage != Stage::EndedDraw
                 && self.stage != Stage::EndedWinnerA
@@ -410,7 +422,6 @@ impl Table {
             {
                 self.goto_next_stage(deps);
             }
-            // TODO find winner
             return;
         }
     }
