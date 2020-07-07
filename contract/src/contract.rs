@@ -130,8 +130,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             let mut deck: Vec<Card> = Deck::default().into_iter().collect();
             deck.shuffle(&mut rng);
 
-            let deck_bytes = serde_json::to_vec(&deck).unwrap();
-            deps.storage.set(b"deck", &deck_bytes);
+            deps.storage
+                .set(b"deck", &serde_json::to_vec(&deck).unwrap());
 
             let a_human_addr = deps
                 .api
