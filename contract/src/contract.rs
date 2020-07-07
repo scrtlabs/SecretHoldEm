@@ -108,7 +108,11 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 // player a - just store
                 deps.storage.set(b"player_a", player_name);
                 deps.storage.set(b"player_a_secret", player_secret);
-                return Ok(HandleResponse::default());
+                return Ok(HandleResponse {
+                    data: Some(Binary("You are player A.".as_bytes().to_vec())),
+                    log: vec![],
+                    messages: vec![],
+                });
             }
 
             // player b - we can now shuffle the deck
@@ -158,7 +162,11 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             let table_bytes = serde_json::to_vec(&table).unwrap();
             deps.storage.set(b"table", &table_bytes);
 
-            return Ok(HandleResponse::default());
+            return Ok(HandleResponse {
+                data: Some(Binary("You are player B.".as_bytes().to_vec())),
+                log: vec![],
+                messages: vec![],
+            });
         }
         HandleMsg::Raise { amount } => {
             let mut table: Table =
@@ -423,15 +431,7 @@ pub enum QueryMsg {
 pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
     match msg {
         QueryMsg::GetPublicData {} => {
-            let table: Table =
-                serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
-            return Ok(Binary(
-                serde_json::to_string(&table)
-                    .unwrap()
-                    .as_str()
-                    .as_bytes()
-                    .to_vec(),
-            ));
+            return Ok(Binary(deps.storage.get(b"table").unwrap()));
         }
         QueryMsg::GetMyHand { secret } => {
             let secret_bytes = secret.to_be_bytes().to_vec();
@@ -471,12 +471,9 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
             let first_card: Card = deck[first_card_index];
             let second_card: Card = deck[second_card_index];
 
-            return Ok(Binary(vec![
-                first_card.value as u8,
-                first_card.suit as u8,
-                second_card.value as u8,
-                second_card.suit as u8,
-            ]));
+            return Ok(Binary(
+                serde_json::to_vec(&vec![first_card, second_card]).unwrap(),
+            ));
         }
     }
 }
