@@ -12,10 +12,9 @@ find-floating-points:
 	twiggy paths ./target/wasm32-unknown-unknown/release/*.wasm > find_floats_twiggy.txt
 	wasm2wat ./target/wasm32-unknown-unknown/release/*.wasm | grep -B 20 -P 'f(64|32)' > find_floats_grep.txt
 
-
 clean:
 	cargo clean
 	-rm -f ./contract.wasm ./contract.wasm.gz
 
-store: all
+store: build
 	secretcli tx compute store contract.wasm.gz --from mykey -y --gas 10000000 --source "https://github.com/enigmampc/SecretHoldEm/blob/$(shell git show --oneline -s | cut -f 1 -d ' ')/contract/src/contract.rs" -b block
