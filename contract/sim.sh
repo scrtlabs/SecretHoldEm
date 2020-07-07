@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -ve
+
 CODE_ID=$(
     secretcli tx compute store contract.wasm.gz --from mykey -y --gas 10000000 -b block |
         jq -r '.logs[].events[].attributes[] | select(.key == "code_id") | .value'
@@ -24,11 +26,71 @@ secretcli tx compute execute "$CONTRACT" '{"join":{"secret":234}}' --from 2 -b b
     base64 -d
 echo
 
-echo Player A Hand:
+# Player A Hand:
 secretcli q compute contract-state smart "$CONTRACT" '{"get_my_hand":{"secret":123}}'
 
-echo Player B Hand:
+# Player B Hand:
 secretcli q compute contract-state smart "$CONTRACT" '{"get_my_hand":{"secret":234}}'
 
-echo Table:
+# Table:
+secretcli q compute contract-state smart "$CONTRACT" '{"get_public_data":{}}' | jq .
+
+# A checks
+secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 1 -b block -y |
+    jq .txhash |
+    xargs secretcli q compute tx |
+    jq .
+
+# B checks
+secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 2 -b block -y |
+    jq .txhash |
+    xargs secretcli q compute tx |
+    jq .
+
+# Table:
+secretcli q compute contract-state smart "$CONTRACT" '{"get_public_data":{}}' | jq .
+
+# A checks
+secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 1 -b block -y |
+    jq .txhash |
+    xargs secretcli q compute tx |
+    jq .
+
+# B checks
+secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 2 -b block -y |
+    jq .txhash |
+    xargs secretcli q compute tx |
+    jq .
+
+# Table:
+secretcli q compute contract-state smart "$CONTRACT" '{"get_public_data":{}}' | jq .
+
+# A checks
+secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 1 -b block -y |
+    jq .txhash |
+    xargs secretcli q compute tx |
+    jq .
+
+# B checks
+secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 2 -b block -y |
+    jq .txhash |
+    xargs secretcli q compute tx |
+    jq .
+
+# Table:
+secretcli q compute contract-state smart "$CONTRACT" '{"get_public_data":{}}' | jq .
+
+# A checks
+secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 1 -b block -y |
+    jq .txhash |
+    xargs secretcli q compute tx |
+    jq .
+
+# B checks
+secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 2 -b block -y |
+    jq .txhash |
+    xargs secretcli q compute tx |
+    jq .
+
+# Table:
 secretcli q compute contract-state smart "$CONTRACT" '{"get_public_data":{}}' | jq .
