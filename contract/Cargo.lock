@@ -289,7 +289,7 @@ dependencies = [
  "rs_poker",
  "schemars",
  "serde",
- "serde_json",
+ "serde-json-wasm",
  "sha2",
 ]
 

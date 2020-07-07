@@ -8,14 +8,14 @@ use rand_chacha::ChaChaRng;
 use rs_poker::core::{Card, Deck, Rankable};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json;
+use serde_json_wasm as serde_json;
 use sha2::{Digest, Sha256};
 
 /////////////////////////////// Init ///////////////////////////////
 //
 ////////////////////////////////////////////////////////////////////
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct InitMsg {}
 
@@ -30,7 +30,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 /////////////////////////////// Handle ///////////////////////////////
 //
 //////////////////////////////////////////////////////////////////////
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone)]
 struct Table {
     player_a: HumanAddr,
     player_a_wallet: i64,
@@ -48,7 +48,8 @@ struct Table {
     cards: Vec<Card>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Eq, PartialEq)]
+#[repr(u8)]
 enum Stage {
     PreFlop,
     Flop,
@@ -76,7 +77,7 @@ const TURN_CARD: usize = 9;
 const RIVER_CARD: usize = 11;
 // River betting round
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
     Join { secret: u64 },
@@ -413,7 +414,7 @@ impl Table {
 // player get their private information as a response to txs (handle)
 ///////////////////////////////////////////////////////////////////////
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     GetMyHand { secret: u64 },
@@ -486,7 +487,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
 // comply with CosmWasm 0.9 API
 ///////////////////////////////////////////////////////////////////////
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum MigrateMsg {}
 

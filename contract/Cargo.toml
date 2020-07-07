@@ -22,14 +22,14 @@ incremental = false
 overflow-checks = true
 
 [features]
-default = ["backtraces"]
+default = []
 backtraces = ["cosmwasm-std/backtraces"]
 
 [dependencies]
 cosmwasm-std = { git = "https://github.com/enigmampc/SecretNetwork", rev = "34475bbfeaab47a6b0f4db140044f1f945824100" }
 cosmwasm-storage = { git = "https://github.com/enigmampc/SecretNetwork", rev = "34475bbfeaab47a6b0f4db140044f1f945824100" }
 schemars = "0.7"
-serde_json = "1.0.56"
+serde-json-wasm = "0.2.1"
 serde = { version = "1.0.114", default-features = false, features = [
   "derive",
   "alloc"
