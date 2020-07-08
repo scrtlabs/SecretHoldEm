@@ -300,7 +300,9 @@ class App extends React.Component {
             <a href="/#">Return to loby</a>
           </div>
           {/* community cards */}
-          <div style={{ position: "absolute", left: "35vw" }}>
+          <div
+            style={{ position: "absolute", width: "100%", textAlign: "center" }}
+          >
             <center>
               <div>{room}</div>
               <div>{stage}</div>
@@ -349,10 +351,11 @@ class App extends React.Component {
           <center>
             <div
               style={{
-                position: "absolute",
+                position: "fixed",
                 bottom: 0,
-                left: 600,
                 padding: 10,
+                width: "100%",
+                textAlign: "center",
               }}
             >
               <Button
