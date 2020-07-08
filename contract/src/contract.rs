@@ -137,6 +137,21 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 // player a - just store
                 deps.storage.set(b"player_a", player_name);
                 deps.storage.set(b"player_a_secret", player_secret);
+
+                let a_human_addr = deps
+                    .api
+                    .human_address(&CanonicalAddr(Binary(player_name.to_vec())))
+                    .unwrap();
+
+                let mut table: Table =
+                    serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
+                table.player_a = Some(a_human_addr.clone());
+                table.player_a_wallet = MAX_CREDIT;
+                table.starter = Some(a_human_addr.clone());
+                table.turn = Some(a_human_addr.clone());
+                deps.storage
+                    .set(b"table", &serde_json::to_vec(&table).unwrap());
+
                 return Ok(HandleResponse {
                     data: Some(Binary("You are player A.".as_bytes().to_vec())),
                     log: vec![],

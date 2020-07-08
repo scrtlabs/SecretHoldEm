@@ -7,7 +7,7 @@ import { Button, Form } from "semantic-ui-react";
 import "semantic-ui-css/semantic.min.css";
 
 const nf = new Intl.NumberFormat();
-const codeId = 9;
+const codeId = 11;
 
 const emptyState = {
   game_address: window.location.hash.replace("#", ""),
@@ -198,6 +198,7 @@ class App extends React.Component {
     setTimeout(refreshTableState, 0);
     setInterval(refreshTableState, 3000);
   }
+
   async createRoom() {
     await this.state.secretJsClient.instantiate(
       codeId,
@@ -206,6 +207,30 @@ class App extends React.Component {
     );
     this.setState({ new_room_name: "" });
   }
+
+  async joinRoom() {
+    if (!this.state.game_address) {
+      // ah?
+      return;
+    }
+
+    if (localStorage.getItem(this.state.game_address)) {
+      // already joined?
+      return;
+    }
+
+    const seed = SecretJS.EnigmaUtils.GenerateNewSeed();
+    const buffer = Buffer.from(seed.slice(0, 8)); // 64 bit
+
+    const secret = buffer.readUInt32BE(0);
+
+    await this.state.secretJsClient.execute(this.state.game_address, {
+      join: { secret },
+    });
+
+    localStorage.setItem(this.state.game_address, secret);
+  }
+
   render() {
     if (window.location.hash === "") {
       return (
@@ -244,7 +269,7 @@ class App extends React.Component {
       stage = (
         <span>
           <div>Waiting for players</div>
-          <Button>Join</Button>
+          <Button onClick={this.joinRoom.bind(this)}>Join</Button>
         </span>
       );
     } else if (stage) {
