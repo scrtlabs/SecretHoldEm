@@ -36,25 +36,14 @@ class App extends React.Component {
 
   async componentDidMount() {
     window.onhashchange = async () => {
-      this.setState({
-        game_address: window.location.hash.replace("#", ""),
-      });
-
       if (window.location.hash === "") {
         this.setState(Object.assign({}, emptyState));
         return;
       }
 
-      try {
-        const data = await secretJsClient.queryContractSmart(
-          this.state.game_address,
-          { get_my_hand: { secret: 234 } }
-        );
-
-        this.setState({
-          my_hand: data,
-        });
-      } catch (e) {}
+      this.setState({
+        game_address: window.location.hash.replace("#", ""),
+      });
     };
 
     let mnemonic = localStorage.getItem("mnemonic");
@@ -62,8 +51,6 @@ class App extends React.Component {
       mnemonic = bip39.generateMnemonic();
       localStorage.setItem("mnemonic", mnemonic);
     }
-    mnemonic =
-      "web use october receive enforce desk stick arena toast vacuum swear spike about company dragon amused various glide ball maze anxiety lake umbrella light";
 
     let tx_encryption_seed = localStorage.getItem("tx_encryption_seed");
     if (tx_encryption_seed) {
@@ -109,28 +96,58 @@ class App extends React.Component {
     setTimeout(refreshAllRooms, 0);
     setInterval(refreshAllRooms, 1000);
 
-    setTimeout(async () => {
+    const refreshMyHand = async () => {
       if (window.location.hash === "") {
         return;
       }
 
+      if (
+        !this.state.player_a ||
+        !this.state.player_b ||
+        (this.state.player_a !== this.state.myWalletAddress &&
+          this.state.player_b !== this.state.myWalletAddress)
+      ) {
+        return;
+      }
+
       try {
+        const secret = +localStorage.getItem(this.state.game_address);
         const data = await secretJsClient.queryContractSmart(
           this.state.game_address,
-          { get_my_hand: { secret: 234 } }
+          { get_my_hand: { secret } }
         );
+
+        console.log("set hand", data);
 
         this.setState({
           my_hand: data,
         });
-      } catch (e) {}
-    }, 0);
+      } catch (e) {
+        console.log(e);
+      }
+    };
+    setTimeout(refreshMyHand, 0);
+    setInterval(refreshMyHand, 1000);
 
     const refreshMyWalletBalance = async () => {
       const data = await secretJsClient.getAccount(myWalletAddress);
 
       if (!data) {
-        this.setState({ myWalletBalance: "(No funds)" });
+        this.setState({
+          myWalletBalance: (
+            <span>
+              (No funds - Go get some at{" "}
+              <a
+                href="https://faucet.testnet.enigma.co"
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                https://faucet.testnet.enigma.co
+              </a>
+              )
+            </span>
+          ),
+        });
       } else {
         this.setState({
           myWalletBalance: `(${nf.format(
@@ -160,13 +177,13 @@ class App extends React.Component {
           data.player_b_hand = [{}, {}];
         }
 
-        if (myWalletAddress === data.player_a) {
+        if (this.state.myWalletAddress === data.player_a) {
           this.setState({
             player_a_hand: this.state.my_hand,
             player_b_hand: data.player_b_hand,
           });
-        }
-        if (myWalletAddress === data.player_b) {
+        } else if (this.state.myWalletAddress === data.player_b) {
+          console.log("player b!");
           this.setState({
             player_a_hand: data.player_a_hand,
             player_b_hand: this.state.my_hand,
@@ -214,15 +231,11 @@ class App extends React.Component {
       return;
     }
 
-    if (localStorage.getItem(this.state.game_address)) {
-      // already joined?
-      return;
+    let secret = +localStorage.getItem(this.state.game_address);
+    if (!secret) {
+      const seed = SecretJS.EnigmaUtils.GenerateNewSeed();
+      secret = Buffer.from(seed.slice(0, 8)).readUInt32BE(0); // 64 bit
     }
-
-    const seed = SecretJS.EnigmaUtils.GenerateNewSeed();
-    const buffer = Buffer.from(seed.slice(0, 8)); // 64 bit
-
-    const secret = buffer.readUInt32BE(0);
 
     await this.state.secretJsClient.execute(this.state.game_address, {
       join: { secret },
@@ -231,11 +244,48 @@ class App extends React.Component {
     localStorage.setItem(this.state.game_address, secret);
   }
 
+  async fold() {
+    await this.state.secretJsClient.execute(this.state.game_address, {
+      fold: {},
+    });
+  }
+
+  async check() {
+    await this.state.secretJsClient.execute(this.state.game_address, {
+      check: {},
+    });
+  }
+
+  async call() {
+    await this.state.secretJsClient.execute(this.state.game_address, {
+      call: {},
+    });
+  }
+
+  async raise() {
+    await this.state.secretJsClient.execute(this.state.game_address, {
+      raise: { amount: 10000 },
+    });
+  }
+
   render() {
     if (window.location.hash === "") {
       return (
         <div style={{ color: "white" }}>
           <Table>
+            {/* wallet */}
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                padding: 10,
+              }}
+            >
+              <div>
+                You: {this.state.myWalletAddress} {this.state.myWalletBalance}
+              </div>
+            </div>
             <center>
               <div>
                 <Form.Input
@@ -269,7 +319,17 @@ class App extends React.Component {
       stage = (
         <span>
           <div>Waiting for players</div>
-          <Button onClick={this.joinRoom.bind(this)}>Join</Button>
+          <Button
+            disabled={
+              (this.state.player_a &&
+                this.state.player_a === this.state.myWalletAddress) ||
+              (this.state.player_b &&
+                this.state.player_b === this.state.myWalletAddress)
+            }
+            onClick={this.joinRoom.bind(this)}
+          >
+            Join
+          </Button>
         </span>
       );
     } else if (stage) {
@@ -342,7 +402,7 @@ class App extends React.Component {
             <center>
               <div style={{ padding: 35 }}>
                 <span style={{ marginRight: 250 }}>
-                  Total Bet: {nf.format(this.state.player_a_bet)}
+                  Total Bet: {nf.format(this.state.player_b_bet)}
                 </span>
                 <span>Total Bet: {nf.format(this.state.player_a_bet)}</span>
               </div>
@@ -384,6 +444,7 @@ class App extends React.Component {
               }}
             >
               <Button
+                onClick={this.check.bind(this)}
                 disabled={
                   !this.state.turn ||
                   this.state.turn !== this.state.myWalletAddress
@@ -392,6 +453,7 @@ class App extends React.Component {
                 Check
               </Button>
               <Button
+                onClick={this.call.bind(this)}
                 disabled={
                   !this.state.turn ||
                   this.state.turn !== this.state.myWalletAddress
@@ -400,6 +462,7 @@ class App extends React.Component {
                 Call
               </Button>
               <Button
+                onClick={this.raise.bind(this)}
                 disabled={
                   !this.state.turn ||
                   this.state.turn !== this.state.myWalletAddress
@@ -408,6 +471,7 @@ class App extends React.Component {
                 Raise
               </Button>
               <Button
+                onClick={this.fold.bind(this)}
                 disabled={
                   !this.state.turn ||
                   this.state.turn !== this.state.myWalletAddress
