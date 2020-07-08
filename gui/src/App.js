@@ -83,6 +83,20 @@ class App extends React.Component {
       });
     }, 0);
 
+    setTimeout(async () => {
+      const data = await secretJsClient.getAccount(myWalletAddress);
+
+      if (!data) {
+        this.setState({ myWalletBalance: "(No funds)" });
+      } else {
+        this.setState({
+          myWalletBalance: `(${nf.format(
+            +data.balance[0].amount / 1000000
+          )} SCRT)`,
+        });
+      }
+    }, 0);
+
     const refreshTableState = async () => {
       const data = await secretJsClient.queryContractSmart(
         this.state.game_address,
@@ -172,7 +186,9 @@ class App extends React.Component {
               padding: 10,
             }}
           >
-            <div>You: {this.state.myWalletAddress}</div>
+            <div>
+              You: {this.state.myWalletAddress} {this.state.myWalletBalance}
+            </div>
           </div>
           {/* community cards */}
           <div style={{ position: "absolute", left: "35vw" }}>
