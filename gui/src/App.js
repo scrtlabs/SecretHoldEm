@@ -3,7 +3,7 @@ import * as SecretJS from "secretjs";
 import * as bip39 from "bip39";
 import { Hand, Table, Card } from "react-casino";
 
-// import { Form, Button } from "semantic-ui-react";
+import { Button, Form } from "semantic-ui-react";
 import "semantic-ui-css/semantic.min.css";
 
 const nf = new Intl.NumberFormat();
@@ -24,6 +24,7 @@ const emptyState = {
   player_b_wallet: 0,
   stage: "",
   turn: "",
+  new_room_name: "",
 };
 
 class App extends React.Component {
@@ -197,7 +198,14 @@ class App extends React.Component {
     setTimeout(refreshTableState, 0);
     setInterval(refreshTableState, 3000);
   }
-
+  async createRoom() {
+    await this.state.secretJsClient.instantiate(
+      codeId,
+      {},
+      this.state.new_room_name
+    );
+    this.setState({ new_room_name: "" });
+  }
   render() {
     if (window.location.hash === "") {
       return (
@@ -205,23 +213,13 @@ class App extends React.Component {
           <Table>
             <center>
               <div>
-                <input id="new-room-name" />{" "}
-                <button
-                  type="button"
-                  onClick={() => {
-                    this.state.secretJsClient
-                      .instantiate(
-                        codeId,
-                        {},
-                        document.getElementById("new-room-name").value
-                      )
-                      .then(console.log)
-                      .catch(console.log);
-                    document.getElementById("new-room-name").value = "";
-                  }}
-                >
-                  Create!
-                </button>
+                <Form.Input
+                  value={this.state.new_room_name}
+                  onChange={(_, { value }) =>
+                    this.setState({ new_room_name: value })
+                  }
+                />
+                <Button onClick={this.createRoom.bind(this)}>Create!</Button>
               </div>
               <br />
               <div>All rooms</div>
@@ -243,7 +241,12 @@ class App extends React.Component {
     } else if (stage.includes("EndedDraw")) {
       stage = "It's a Tie!";
     } else if (stage === "WaitingForPlayersToJoin") {
-      stage = "Waiting for players";
+      stage = (
+        <span>
+          <div>Waiting for players</div>
+          <Button>Join</Button>
+        </span>
+      );
     } else if (stage) {
       stage += " betting round";
     }
@@ -294,7 +297,7 @@ class App extends React.Component {
               padding: 10,
             }}
           >
-            <a href="#">Return to loby</a>
+            <a href="/#">Return to loby</a>
           </div>
           {/* community cards */}
           <div style={{ position: "absolute", left: "35vw" }}>
@@ -342,6 +345,50 @@ class App extends React.Component {
             style={{ position: "absolute", right: "35vw" }}
             cards={this.state.player_a_hand.map((c) => stateCardToReactCard(c))}
           />
+          {/* controls */}
+          <center>
+            <div
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: 600,
+                padding: 10,
+              }}
+            >
+              <Button
+                disabled={
+                  !this.state.turn ||
+                  this.state.turn !== this.state.myWalletAddress
+                }
+              >
+                Check
+              </Button>
+              <Button
+                disabled={
+                  !this.state.turn ||
+                  this.state.turn !== this.state.myWalletAddress
+                }
+              >
+                Call
+              </Button>
+              <Button
+                disabled={
+                  !this.state.turn ||
+                  this.state.turn !== this.state.myWalletAddress
+                }
+              >
+                Raise
+              </Button>
+              <Button
+                disabled={
+                  !this.state.turn ||
+                  this.state.turn !== this.state.myWalletAddress
+                }
+              >
+                Fold
+              </Button>
+            </div>
+          </center>
           {/* player b */}
           <center>
             <div
