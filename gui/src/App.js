@@ -2,7 +2,7 @@ import React from "react";
 // import { Form, TextArea, Input, Icon } from "semantic-ui-react";
 import * as SecretJS from "secretjs";
 import * as bip39 from "bip39";
-import { Hand, Table, Deck, Card } from "react-casino";
+import { Hand, Table, Card } from "react-casino";
 
 import "semantic-ui-css/semantic.min.css";
 import "./App.css";
