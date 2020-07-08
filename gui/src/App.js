@@ -4,15 +4,16 @@ import * as bip39 from "bip39";
 import { Hand, Table, Card } from "react-casino";
 
 import "semantic-ui-css/semantic.min.css";
-import "./App.css";
 
 const nf = new Intl.NumberFormat();
 
 class App extends React.Component {
   constructor(props) {
     super(props);
+
     this.state = {
-      game_address: "secret15rrl3qjafxzlzguu5x29xh29pam35uetwpfnna",
+      game_address: window.location.hash.replace("#", ""),
+      all_rooms: [],
       community_cards: [],
       my_hand: [{}, {}],
       player_a_hand: [{}, {}],
@@ -29,6 +30,29 @@ class App extends React.Component {
   }
 
   async componentDidMount() {
+    window.onhashchange = async () => {
+      this.setState({
+        game_address: window.location.hash.replace("#", ""),
+      });
+
+      if (window.location.hash === "") {
+        return;
+      }
+
+      try {
+        const data = await secretJsClient.queryContractSmart(
+          this.state.game_address,
+          { get_my_hand: { secret: 234 } }
+        );
+
+        this.setState({
+          my_hand: data,
+        });
+      } catch (e) {
+        window.location.hash = "";
+      }
+    };
+
     let mnemonic = localStorage.getItem("mnemonic");
     if (!mnemonic) {
       mnemonic = bip39.generateMnemonic();
@@ -70,20 +94,31 @@ class App extends React.Component {
     );
 
     this.setState({ secretJsClient, myWalletAddress, mnemonic });
-    console.log(this.state);
 
-    setTimeout(async () => {
-      const data = await secretJsClient.queryContractSmart(
-        this.state.game_address,
-        { get_my_hand: { secret: 234 } }
-      );
+    const refreshAllRooms = async () => {
+      const data = await secretJsClient.getContracts(8);
 
       this.setState({
-        my_hand: data,
+        all_rooms: data,
       });
-    }, 0);
+    };
+    setTimeout(refreshAllRooms, 0);
+    setInterval(refreshAllRooms, 1000);
 
     setTimeout(async () => {
+      try {
+        const data = await secretJsClient.queryContractSmart(
+          this.state.game_address,
+          { get_my_hand: { secret: 234 } }
+        );
+
+        this.setState({
+          my_hand: data,
+        });
+      } catch (e) {}
+    }, 0);
+
+    const refreshMyWalletBalance = async () => {
       const data = await secretJsClient.getAccount(myWalletAddress);
 
       if (!data) {
@@ -95,51 +130,57 @@ class App extends React.Component {
           )} SCRT)`,
         });
       }
-    }, 0);
+    };
+    setTimeout(refreshMyWalletBalance, 0);
+    setInterval(refreshMyWalletBalance, 10000);
 
     const refreshTableState = async () => {
-      const data = await secretJsClient.queryContractSmart(
-        this.state.game_address,
-        { get_public_data: {} }
-      );
+      try {
+        const data = await secretJsClient.queryContractSmart(
+          this.state.game_address,
+          { get_public_data: {} }
+        );
 
-      if (data.player_a_hand.length === 0) {
-        data.player_a_hand = [{}, {}];
-      }
-      if (data.player_b_hand.length === 0) {
-        data.player_b_hand = [{}, {}];
-      }
+        if (data.player_a_hand.length === 0) {
+          data.player_a_hand = [{}, {}];
+        }
+        if (data.player_b_hand.length === 0) {
+          data.player_b_hand = [{}, {}];
+        }
 
-      if (myWalletAddress === data.player_a) {
-        this.setState({
-          player_a_hand: this.state.my_hand,
-          player_b_hand: data.player_b_hand,
-        });
-      }
-      if (myWalletAddress === data.player_b) {
-        this.setState({
-          player_a_hand: data.player_a_hand,
-          player_b_hand: this.state.my_hand,
-        });
-      } else {
-        this.setState({
-          player_a_hand: data.player_a_hand,
-          player_b_hand: data.player_b_hand,
-        });
-      }
+        if (myWalletAddress === data.player_a) {
+          this.setState({
+            player_a_hand: this.state.my_hand,
+            player_b_hand: data.player_b_hand,
+          });
+        }
+        if (myWalletAddress === data.player_b) {
+          this.setState({
+            player_a_hand: data.player_a_hand,
+            player_b_hand: this.state.my_hand,
+          });
+        } else {
+          this.setState({
+            player_a_hand: data.player_a_hand,
+            player_b_hand: data.player_b_hand,
+          });
+        }
 
-      this.setState({
-        community_cards: data.community_cards,
-        player_a: data.player_a,
-        player_a_bet: data.player_a_bet,
-        player_a_wallet: data.player_a_wallet,
-        player_b: data.player_b,
-        player_b_bet: data.player_b_bet,
-        player_b_wallet: data.player_b_wallet,
-        stage: data.stage,
-        starter: data.starter,
-        turn: data.turn,
-      });
+        this.setState({
+          community_cards: data.community_cards,
+          player_a: data.player_a,
+          player_a_bet: data.player_a_bet,
+          player_a_wallet: data.player_a_wallet,
+          player_b: data.player_b,
+          player_b_bet: data.player_b_bet,
+          player_b_wallet: data.player_b_wallet,
+          stage: data.stage,
+          starter: data.starter,
+          turn: data.turn,
+        });
+      } catch (e) {
+        window.location.hash = "";
+      }
     };
 
     setTimeout(refreshTableState, 0);
@@ -147,6 +188,23 @@ class App extends React.Component {
   }
 
   render() {
+    if (window.location.hash == "") {
+      return (
+        <div style={{ color: "white" }}>
+          <Table>
+            <center>
+              <div>All rooms</div>
+              {this.state.all_rooms.map((r, i) => (
+                <div key={i}>
+                  {r.label}: <a href={"#" + r.address}>{r.address}</a>
+                </div>
+              ))}
+            </center>
+          </Table>
+        </div>
+      );
+    }
+
     let stage = this.state.stage;
     if (stage.includes("EndedWinner")) {
       stage = stage.replace("EndedWinner", "");
@@ -189,6 +247,17 @@ class App extends React.Component {
             <div>
               You: {this.state.myWalletAddress} {this.state.myWalletBalance}
             </div>
+          </div>
+          {/* return to loby */}
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              padding: 10,
+            }}
+          >
+            <a href="#">Return to loby</a>
           </div>
           {/* community cards */}
           <div style={{ position: "absolute", left: "35vw" }}>
