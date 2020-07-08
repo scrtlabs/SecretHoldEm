@@ -20,10 +20,34 @@ use sha2::{Digest, Sha256};
 pub struct InitMsg {}
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+    deps: &mut Extern<S, A, Q>,
     _env: Env,
     _msg: InitMsg,
 ) -> InitResult {
+    let table = Table {
+        player_a: None,
+        player_b: None,
+
+        player_a_wallet: 0,
+        player_b_wallet: 0,
+
+        player_a_bet: 0,
+        player_b_bet: 0,
+
+        stage: Stage::WaitingForPlayersToJoin,
+        starter: None,
+        turn: None,
+        last_play: None,
+
+        community_cards: vec![],
+
+        player_a_hand: vec![],
+        player_b_hand: vec![],
+    };
+
+    deps.storage
+        .set(b"table", &serde_json::to_vec(&table).unwrap());
+
     Ok(InitResponse::default())
 }
 
@@ -32,16 +56,17 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 //////////////////////////////////////////////////////////////////////
 #[derive(Serialize, Deserialize, Clone)]
 struct Table {
-    player_a: HumanAddr,
+    player_a: Option<HumanAddr>,
     player_a_wallet: i64,
     player_a_bet: i64,
 
-    player_b: HumanAddr,
+    player_b: Option<HumanAddr>,
     player_b_wallet: i64,
     player_b_bet: i64,
 
-    starter: HumanAddr,
-    turn: HumanAddr, // round ends if after a bet: starter != turn && player_a_bet == player_b_bet
+    starter: Option<HumanAddr>,
+    turn: Option<HumanAddr>, // round ends if after a bet: starter != turn && player_a_bet == player_b_bet
+    last_play: Option<String>,
 
     stage: Stage,
 
@@ -54,6 +79,7 @@ struct Table {
 #[derive(Serialize, Deserialize, Clone, Eq, PartialEq)]
 #[repr(u8)]
 enum Stage {
+    WaitingForPlayersToJoin,
     PreFlop,
     Flop,
     Turn,
@@ -146,8 +172,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 .unwrap();
 
             let table = Table {
-                player_a: a_human_addr.clone(),
-                player_b: b_human_addr.clone(),
+                player_a: Some(a_human_addr.clone()),
+                player_b: Some(b_human_addr.clone()),
 
                 player_a_wallet: MAX_CREDIT,
                 player_b_wallet: MAX_CREDIT,
@@ -156,8 +182,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 player_b_bet: 0,
 
                 stage: Stage::PreFlop,
-                starter: a_human_addr.clone(),
-                turn: a_human_addr.clone(),
+                starter: Some(a_human_addr.clone()),
+                turn: Some(a_human_addr.clone()),
+                last_play: None,
 
                 community_cards: vec![],
 
@@ -165,8 +192,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 player_b_hand: vec![],
             };
 
-            let table_bytes = serde_json::to_vec(&table).unwrap();
-            deps.storage.set(b"table", &table_bytes);
+            deps.storage
+                .set(b"table", &serde_json::to_vec(&table).unwrap());
 
             return Ok(HandleResponse {
                 data: Some(Binary("You are player B.".as_bytes().to_vec())),
@@ -184,7 +211,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 _ => { /* continue */ }
             };
 
-            let me = deps.api.human_address(&env.message.sender).unwrap();
+            let me = Some(deps.api.human_address(&env.message.sender).unwrap());
 
             if me != table.player_a && me != table.player_b {
                 return Err(generic_err("You are not a player, go away!"));
@@ -204,6 +231,10 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                     ));
                 }
 
+                table.last_play = Some(String::from(format!(
+                    "Player A raised by {} credits",
+                    amount
+                )));
                 table.turn = table.player_b.clone();
             } else {
                 // I'm player B
@@ -215,11 +246,15 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                     ));
                 }
 
+                table.last_play = Some(String::from(format!(
+                    "Player B raised by {} credits",
+                    amount
+                )));
                 table.turn = table.player_a.clone();
             }
 
-            let table_bytes = serde_json::to_vec(&table).unwrap();
-            deps.storage.set(b"table", &table_bytes);
+            deps.storage
+                .set(b"table", &serde_json::to_vec(&table).unwrap());
 
             return Ok(HandleResponse::default());
         }
@@ -233,7 +268,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 _ => { /* continue */ }
             };
 
-            let me = deps.api.human_address(&env.message.sender).unwrap();
+            let me = Some(deps.api.human_address(&env.message.sender).unwrap());
 
             if me != table.player_a && me != table.player_b {
                 return Err(generic_err("You are not a player, go away!"));
@@ -257,6 +292,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                     table.player_a_bet = MAX_CREDIT;
                 }
 
+                table.last_play = Some(String::from("Player A called"));
                 table.turn = table.player_b.clone();
             } else {
                 // I'm player B
@@ -271,6 +307,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                     table.player_b_wallet = 0;
                     table.player_b_bet = MAX_CREDIT;
                 }
+
+                table.last_play = Some(String::from("Player B called"));
                 table.turn = table.player_a.clone();
             }
 
@@ -278,8 +316,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 table.goto_next_stage(deps);
             }
 
-            let table_bytes = serde_json::to_vec(&table).unwrap();
-            deps.storage.set(b"table", &table_bytes);
+            deps.storage
+                .set(b"table", &serde_json::to_vec(&table).unwrap());
 
             return Ok(HandleResponse::default());
         }
@@ -293,7 +331,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 _ => { /* continue */ }
             };
 
-            let me = deps.api.human_address(&env.message.sender).unwrap();
+            let me = Some(deps.api.human_address(&env.message.sender).unwrap());
 
             if me != table.player_a && me != table.player_b {
                 return Err(generic_err("You are not a player, go away!"));
@@ -305,12 +343,14 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
             if me == table.player_a {
                 table.stage = Stage::EndedWinnerB;
+                table.last_play = Some(String::from("Player A folded"));
             } else {
                 table.stage = Stage::EndedWinnerA;
+                table.last_play = Some(String::from("Player B folded"));
             }
 
-            let table_bytes = serde_json::to_vec(&table).unwrap();
-            deps.storage.set(b"table", &table_bytes);
+            deps.storage
+                .set(b"table", &serde_json::to_vec(&table).unwrap());
 
             return Ok(HandleResponse::default());
         }
@@ -324,7 +364,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 _ => { /* continue */ }
             };
 
-            let me = deps.api.human_address(&env.message.sender).unwrap();
+            let me = Some(deps.api.human_address(&env.message.sender).unwrap());
 
             if me != table.player_a && me != table.player_b {
                 return Err(generic_err("You are not a player, go away!"));
@@ -339,8 +379,10 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             }
 
             if me == table.player_a {
+                table.last_play = Some(String::from("Player A checked"));
                 table.turn = table.player_b.clone();
             } else {
+                table.last_play = Some(String::from("Player B checked"));
                 table.turn = table.player_a.clone();
             }
 
@@ -348,8 +390,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 table.goto_next_stage(deps);
             }
 
-            let table_bytes = serde_json::to_vec(&table).unwrap();
-            deps.storage.set(b"table", &table_bytes);
+            deps.storage
+                .set(b"table", &serde_json::to_vec(&table).unwrap());
 
             return Ok(HandleResponse::default());
         }

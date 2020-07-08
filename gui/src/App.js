@@ -3,9 +3,11 @@ import * as SecretJS from "secretjs";
 import * as bip39 from "bip39";
 import { Hand, Table, Card } from "react-casino";
 
+// import { Form, Button } from "semantic-ui-react";
 import "semantic-ui-css/semantic.min.css";
 
 const nf = new Intl.NumberFormat();
+const codeId = 8;
 
 class App extends React.Component {
   constructor(props) {
@@ -48,9 +50,7 @@ class App extends React.Component {
         this.setState({
           my_hand: data,
         });
-      } catch (e) {
-        window.location.hash = "";
-      }
+      } catch (e) {}
     };
 
     let mnemonic = localStorage.getItem("mnemonic");
@@ -96,7 +96,7 @@ class App extends React.Component {
     this.setState({ secretJsClient, myWalletAddress, mnemonic });
 
     const refreshAllRooms = async () => {
-      const data = await secretJsClient.getContracts(8);
+      const data = await secretJsClient.getContracts(codeId);
 
       this.setState({
         all_rooms: data,
@@ -106,6 +106,10 @@ class App extends React.Component {
     setInterval(refreshAllRooms, 1000);
 
     setTimeout(async () => {
+      if (window.location.hash === "") {
+        return;
+      }
+
       try {
         const data = await secretJsClient.queryContractSmart(
           this.state.game_address,
@@ -135,6 +139,10 @@ class App extends React.Component {
     setInterval(refreshMyWalletBalance, 10000);
 
     const refreshTableState = async () => {
+      if (window.location.hash === "") {
+        return;
+      }
+
       try {
         const data = await secretJsClient.queryContractSmart(
           this.state.game_address,
@@ -179,7 +187,7 @@ class App extends React.Component {
           turn: data.turn,
         });
       } catch (e) {
-        window.location.hash = "";
+        // Probably table is only after init
       }
     };
 
@@ -188,11 +196,31 @@ class App extends React.Component {
   }
 
   render() {
-    if (window.location.hash == "") {
+    if (window.location.hash === "") {
       return (
         <div style={{ color: "white" }}>
           <Table>
             <center>
+              <div>
+                <input id="new-room-name" />{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    this.state.secretJsClient
+                      .instantiate(
+                        codeId,
+                        {},
+                        document.getElementById("new-room-name").value
+                      )
+                      .then(console.log)
+                      .catch(console.log);
+                    document.getElementById("new-room-name").value = "";
+                  }}
+                >
+                  Create!
+                </button>
+              </div>
+              <br />
               <div>All rooms</div>
               {this.state.all_rooms.map((r, i) => (
                 <div key={i}>
