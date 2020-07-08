@@ -7,28 +7,30 @@ import { Hand, Table, Card } from "react-casino";
 import "semantic-ui-css/semantic.min.css";
 
 const nf = new Intl.NumberFormat();
-const codeId = 8;
+const codeId = 9;
+
+const emptyState = {
+  game_address: window.location.hash.replace("#", ""),
+  all_rooms: [],
+  community_cards: [],
+  my_hand: [{}, {}],
+  player_a_hand: [{}, {}],
+  player_b_hand: [{}, {}],
+  player_a: "",
+  player_a_bet: 0,
+  player_a_wallet: 0,
+  player_b: "",
+  player_b_bet: 0,
+  player_b_wallet: 0,
+  stage: "",
+  turn: "",
+};
 
 class App extends React.Component {
   constructor(props) {
     super(props);
 
-    this.state = {
-      game_address: window.location.hash.replace("#", ""),
-      all_rooms: [],
-      community_cards: [],
-      my_hand: [{}, {}],
-      player_a_hand: [{}, {}],
-      player_b_hand: [{}, {}],
-      player_a: "",
-      player_a_bet: 0,
-      player_a_wallet: 0,
-      player_b: "",
-      player_b_bet: 0,
-      player_b_wallet: 0,
-      stage: "",
-      turn: "",
-    };
+    this.state = Object.assign({}, emptyState);
   }
 
   async componentDidMount() {
@@ -38,6 +40,7 @@ class App extends React.Component {
       });
 
       if (window.location.hash === "") {
+        this.setState(Object.assign({}, emptyState));
         return;
       }
 
@@ -239,6 +242,8 @@ class App extends React.Component {
       stage = `Player ${stage} Wins!`;
     } else if (stage.includes("EndedDraw")) {
       stage = "It's a Tie!";
+    } else if (stage === "WaitingForPlayersToJoin") {
+      stage = "Waiting for players";
     } else if (stage) {
       stage += " betting round";
     }
@@ -251,6 +256,10 @@ class App extends React.Component {
     }
     turn = "Turn: " + turn;
     if (!this.state.stage || this.state.stage.includes("Ended")) {
+      turn = "";
+      turnDirection = "";
+    }
+    if (!this.state.turn) {
       turn = "";
       turnDirection = "";
     }
