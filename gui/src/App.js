@@ -1,11 +1,12 @@
 import React from "react";
-// import { Form, TextArea, Input, Icon } from "semantic-ui-react";
 import * as SecretJS from "secretjs";
 import * as bip39 from "bip39";
 import { Hand, Table, Card } from "react-casino";
 
 import "semantic-ui-css/semantic.min.css";
 import "./App.css";
+
+const nf = new Intl.NumberFormat();
 
 class App extends React.Component {
   constructor(props) {
@@ -186,6 +187,14 @@ class App extends React.Component {
             {this.state.community_cards.map((c, i) =>
               stateCardToReactCard(c, true, i)
             )}
+            <center>
+              <div style={{ padding: 35 }}>
+                <span style={{ marginRight: 250 }}>
+                  Total Bet: {nf.format(this.state.player_a_bet)}
+                </span>
+                <span>Total Bet: {nf.format(this.state.player_a_bet)}</span>
+              </div>
+            </center>
           </div>
           {/* player a */}
           <center>
@@ -203,10 +212,7 @@ class App extends React.Component {
                   ? " (You)"
                   : ""}
               </div>
-              <div>
-                Credits left:{" "}
-                {(this.state.player_a_wallet + 0.0).toLocaleString()}
-              </div>
+              <div>Credits left: {nf.format(this.state.player_a_wallet)}</div>
               <div>{this.state.player_a}</div>
             </div>
           </center>
@@ -230,13 +236,11 @@ class App extends React.Component {
                   ? " (You)"
                   : ""}
               </div>
-              <div>
-                Credits left:{" "}
-                {(this.state.player_b_wallet + 0.0).toLocaleString()}
-              </div>
+              <div>Credits left: {nf.format(this.state.player_b_wallet)}</div>
               <div>{this.state.player_b}</div>
             </div>
           </center>
+
           <Hand
             style={{ position: "absolute", left: "23vw" }}
             cards={this.state.player_b_hand.map((c) => stateCardToReactCard(c))}
