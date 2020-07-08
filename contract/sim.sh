@@ -18,7 +18,7 @@ secretcli tx compute execute "$CONTRACT" '{"join":{"secret":123}}' --from 1 -b b
     jq -r .output_data |
     base64 -d
 
-secretcli tx compute execute "$CONTRACT" '{"join":{"secret":234}}' --from 2 -b block -y |
+secretcli tx compute execute "$CONTRACT" '{"join":{"secret":234}}' --from 3 -b block -y |
     jq .txhash |
     xargs secretcli q compute tx |
     jq -r .output_data |
@@ -40,7 +40,7 @@ secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 1 -b block -y |
     jq .
 
 # B checks
-secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 2 -b block -y |
+secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 3 -b block -y |
     jq .txhash |
     xargs secretcli q compute tx |
     jq .
@@ -55,7 +55,7 @@ secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 1 -b block -y |
     jq .
 
 # B checks
-secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 2 -b block -y |
+secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 3 -b block -y |
     jq .txhash |
     xargs secretcli q compute tx |
     jq .
@@ -70,13 +70,16 @@ secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 1 -b block -y |
     jq .
 
 # B checks
-secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 2 -b block -y |
+secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 3 -b block -y |
     jq .txhash |
     xargs secretcli q compute tx |
     jq .
 
 # Table:
 secretcli q compute contract-state smart "$CONTRACT" '{"get_public_data":{}}' | jq .
+
+echo $CONTRACT
+exit
 
 # A checks
 secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 1 -b block -y |
@@ -85,7 +88,7 @@ secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 1 -b block -y |
     jq .
 
 # B checks
-secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 2 -b block -y |
+secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 3 -b block -y |
     jq .txhash |
     xargs secretcli q compute tx |
     jq .

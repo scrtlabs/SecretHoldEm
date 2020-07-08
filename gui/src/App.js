@@ -11,10 +11,19 @@ class App extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
+      game_address: "secret15rrl3qjafxzlzguu5x29xh29pam35uetwpfnna",
       community_cards: [],
       my_hand: [{}, {}],
       player_a_hand: [{}, {}],
       player_b_hand: [{}, {}],
+      player_a: "",
+      player_a_bet: 0,
+      player_a_wallet: 0,
+      player_b: "",
+      player_b_bet: 0,
+      player_b_wallet: 0,
+      stage: "",
+      turn: "",
     };
   }
 
@@ -24,6 +33,8 @@ class App extends React.Component {
       mnemonic = bip39.generateMnemonic();
       localStorage.setItem("mnemonic", mnemonic);
     }
+    mnemonic =
+      "web use october receive enforce desk stick arena toast vacuum swear spike about company dragon amused various glide ball maze anxiety lake umbrella light";
 
     let tx_encryption_seed = localStorage.getItem("tx_encryption_seed");
     if (tx_encryption_seed) {
@@ -58,11 +69,12 @@ class App extends React.Component {
     );
 
     this.setState({ secretJsClient, myWalletAddress, mnemonic });
+    console.log(this.state);
 
     setTimeout(async () => {
       const data = await secretJsClient.queryContractSmart(
-        "secret1xzlgeyuuyqje79ma6vllregprkmgwgavk8y798",
-        { get_my_hand: { secret: 123 } }
+        this.state.game_address,
+        { get_my_hand: { secret: 234 } }
       );
 
       this.setState({
@@ -70,11 +82,18 @@ class App extends React.Component {
       });
     }, 0);
 
-    const refresh = async () => {
+    const refreshTableState = async () => {
       const data = await secretJsClient.queryContractSmart(
-        "secret1xzlgeyuuyqje79ma6vllregprkmgwgavk8y798",
+        this.state.game_address,
         { get_public_data: {} }
       );
+
+      if (data.player_a_hand.length === 0) {
+        data.player_a_hand = [{}, {}];
+      }
+      if (data.player_b_hand.length === 0) {
+        data.player_b_hand = [{}, {}];
+      }
 
       if (myWalletAddress === data.player_a) {
         this.setState({
@@ -108,69 +127,133 @@ class App extends React.Component {
       });
     };
 
-    setTimeout(refresh, 0);
-    setInterval(refresh, 3000);
+    setTimeout(refreshTableState, 0);
+    setInterval(refreshTableState, 3000);
   }
 
   render() {
+    let stage = this.state.stage;
+    if (stage.includes("EndedWinner")) {
+      stage = stage.replace("EndedWinner", "");
+      stage = `Player ${stage} Wins!`;
+    } else if (stage.includes("EndedDraw")) {
+      stage = "It's a Tie!";
+    } else if (stage) {
+      stage += " betting round";
+    }
+
+    let turn = "Player A";
+    let turnDirection = "->";
+    if (this.state.turn === this.state.player_b) {
+      turn = "Player B";
+      turnDirection = "<-";
+    }
+    turn = "Turn: " + turn;
+    if (!this.state.stage || this.state.stage.includes("Ended")) {
+      turn = "";
+      turnDirection = "";
+    }
+
+    let room = "";
+    if (this.state.game_address) {
+      room = "Room: " + this.state.game_address;
+    }
+
     return (
       <div style={{ color: "white" }}>
-        <center>
-          <Table>
-            <div style={{ position: "absolute", left: "35vw" }}>
-              <div>{this.state.stage ? "Stage: " + this.state.stage : ""}</div>
-              <div>{this.state.turn ? "Turn: " + this.state.turn : ""}</div>
-              <br />
-              {this.state.community_cards.map((c) =>
-                stateCardToReactCard(c, true)
-              )}
-            </div>
-            {/* player a */}
+        <Table>
+          {/* wallet */}
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              padding: 10,
+            }}
+          >
+            <div>You: {this.state.myWalletAddress}</div>
+          </div>
+          {/* community cards */}
+          <div style={{ position: "absolute", left: "35vw" }}>
+            <center>
+              <div>{room}</div>
+              <div>{stage}</div>
+              <div>{turn}</div>
+              <div>{turnDirection}</div>
+            </center>
+
+            <br />
+            {this.state.community_cards.map((c, i) =>
+              stateCardToReactCard(c, true, i)
+            )}
+          </div>
+          {/* player a */}
+          <center>
             <div
-              style={{ position: "absolute", bottom: 0, right: 0, padding: 10 }}
+              style={{
+                position: "absolute",
+                bottom: 0,
+                right: 0,
+                padding: 10,
+              }}
             >
               <div>
                 Player A
-                {this.state.player_a === this.myWalletAddress ? " (You)" : ""}
+                {this.state.player_a === this.state.myWalletAddress
+                  ? " (You)"
+                  : ""}
               </div>
-              <div>{this.state.player_a ? this.state.player_a : ""}</div>
+              <div>
+                Credits left:{" "}
+                {(this.state.player_a_wallet + 0.0).toLocaleString()}
+              </div>
+              <div>{this.state.player_a}</div>
             </div>
-            <Hand
-              style={{ position: "absolute", right: "35vw" }}
-              cards={this.state.player_a_hand.map((c) =>
-                stateCardToReactCard(c)
-              )}
-            />
-            {/* player b */}
+          </center>
+          <Hand
+            style={{ position: "absolute", right: "35vw" }}
+            cards={this.state.player_a_hand.map((c) => stateCardToReactCard(c))}
+          />
+          {/* player b */}
+          <center>
             <div
-              style={{ position: "absolute", bottom: 0, left: 0, padding: 10 }}
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                padding: 10,
+              }}
             >
               <div>
                 Player B{" "}
-                {this.state.player_b === this.myWalletAddress ? " (You)" : ""}
+                {this.state.player_b === this.state.myWalletAddress
+                  ? " (You)"
+                  : ""}
               </div>
-              <div>{this.state.player_b ? this.state.player_b : ""}</div>
+              <div>
+                Credits left:{" "}
+                {(this.state.player_b_wallet + 0.0).toLocaleString()}
+              </div>
+              <div>{this.state.player_b}</div>
             </div>
-            <Hand
-              style={{ position: "absolute", left: "23vw" }}
-              cards={this.state.player_b_hand.map((c) =>
-                stateCardToReactCard(c)
-              )}
-            />
-          </Table>
-        </center>
+          </center>
+          <Hand
+            style={{ position: "absolute", left: "23vw" }}
+            cards={this.state.player_b_hand.map((c) => stateCardToReactCard(c))}
+          />
+        </Table>
       </div>
     );
   }
 }
 
-function stateCardToReactCard(c, component = false) {
+function stateCardToReactCard(c, component = false, index) {
   let suit = c.suit;
   let value = c.value;
 
   if (!c.value || !c.suit) {
     if (component) {
-      return <Card />;
+      return <Card key={index} />;
     } else {
       return {};
     }
@@ -201,7 +284,7 @@ function stateCardToReactCard(c, component = false) {
   }
 
   if (component) {
-    return <Card face={face} suit={suit} />;
+    return <Card key={index} face={face} suit={suit} />;
   } else {
     return { face, suit };
   }
