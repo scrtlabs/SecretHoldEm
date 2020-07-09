@@ -3,6 +3,7 @@ import * as SecretJS from "secretjs";
 import * as bip39 from "bip39";
 import { Hand, Table, Card } from "react-casino";
 
+import { Slider } from "react-semantic-ui-range";
 import { Button, Form } from "semantic-ui-react";
 import "semantic-ui-css/semantic.min.css";
 
@@ -30,6 +31,7 @@ const emptyState = {
   checkLoading: false,
   callLoading: false,
   raiseLoading: false,
+  raiseAmount: 10000,
 };
 
 class App extends React.Component {
@@ -341,6 +343,32 @@ class App extends React.Component {
     this.setState({ raiseLoading: false });
   }
 
+  getMe() {
+    if (!this.state.myWalletAddress) {
+      return null;
+    }
+
+    if (this.state.myWalletAddress === this.state.player_a) {
+      return {
+        player: "A",
+        address: this.state.player_a,
+        bet: this.state.player_a_bet,
+        wallet: this.state.player_a_wallet,
+      };
+    }
+
+    if (this.state.myWalletAddress === this.state.player_b) {
+      return {
+        player: "B",
+        address: this.state.player_b,
+        bet: this.state.player_b_bet,
+        wallet: this.state.player_b_wallet,
+      };
+    }
+
+    return null;
+  }
+
   render() {
     if (window.location.hash === "") {
       return (
@@ -403,10 +431,8 @@ class App extends React.Component {
             loading={this.state.joinLoading}
             disabled={
               this.state.joinLoading ||
-              (this.state.player_a &&
-                this.state.player_a === this.state.myWalletAddress) ||
-              (this.state.player_b &&
-                this.state.player_b === this.state.myWalletAddress)
+              this.getMe() ||
+              !this.state.myWalletBalance.includes("SCRT")
             }
             onClick={this.joinRoom.bind(this)}
           >
@@ -420,18 +446,25 @@ class App extends React.Component {
 
     let turn = "Player A";
     let turnDirection = "->";
+    let lastPlay = `Last play: ${this.state.last_play}`;
     if (this.state.turn === this.state.player_b) {
       turn = "Player B";
       turnDirection = "<-";
     }
     turn = "Turn: " + turn;
-    if (!this.state.stage || this.state.stage.includes("Ended")) {
+    if (
+      !this.state.stage ||
+      this.state.stage.includes("Ended") ||
+      this.state.stage.includes("Waiting")
+    ) {
       turn = "";
       turnDirection = "";
+      lastPlay = "";
     }
     if (!this.state.turn) {
       turn = "";
       turnDirection = "";
+      lastPlay = "";
     }
 
     let room = "";
@@ -473,6 +506,7 @@ class App extends React.Component {
             <center>
               <div>{room}</div>
               <div>{stage}</div>
+              <div>{lastPlay}</div>
               <div>{turn}</div>
               <div>{turnDirection}</div>
             </center>
@@ -484,9 +518,9 @@ class App extends React.Component {
             <center>
               <div style={{ padding: 35 }}>
                 <span style={{ marginRight: 250 }}>
-                  Total Bet: {nf.format(this.state.player_b_bet)}
+                  A Total Bet: {nf.format(this.state.player_b_bet)}
                 </span>
-                <span>Total Bet: {nf.format(this.state.player_a_bet)}</span>
+                <span>B Total Bet: {nf.format(this.state.player_a_bet)}</span>
               </div>
             </center>
           </div>
@@ -524,6 +558,7 @@ class App extends React.Component {
                 width: "100%",
                 textAlign: "center",
               }}
+              hidden={!this.getMe()}
             >
               <Button
                 loading={this.state.checkLoading}
@@ -591,6 +626,19 @@ class App extends React.Component {
               >
                 Fold
               </Button>
+              <Slider
+                value={10000}
+                color="red"
+                settings={{
+                  start: 2,
+                  min: 0,
+                  max: 10,
+                  step: 1,
+                  onChange: (value) => {
+                    this.setState({ raiseAmount: value });
+                  },
+                }}
+              />
             </div>
           </center>
           {/* player b */}
