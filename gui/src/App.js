@@ -10,7 +10,7 @@ const nf = new Intl.NumberFormat();
 const codeId = 11;
 
 const emptyState = {
-  game_address: window.location.hash.replace("#", ""),
+  game_address: "",
   all_rooms: [],
   community_cards: [],
   my_hand: [{}, {}],
@@ -31,19 +31,18 @@ class App extends React.Component {
   constructor(props) {
     super(props);
 
-    this.state = Object.assign({}, emptyState);
+    this.state = Object.assign({}, emptyState, {
+      game_address: window.location.hash.replace("#", ""),
+    });
   }
 
   async componentDidMount() {
     window.onhashchange = async () => {
-      if (window.location.hash === "") {
-        this.setState(Object.assign({}, emptyState));
-        return;
-      }
-
-      this.setState({
-        game_address: window.location.hash.replace("#", ""),
-      });
+      this.setState(
+        Object.assign({}, emptyState, {
+          game_address: window.location.hash.replace("#", ""),
+        })
+      );
     };
 
     let mnemonic = localStorage.getItem("mnemonic");
@@ -87,11 +86,19 @@ class App extends React.Component {
     this.setState({ secretJsClient, myWalletAddress, mnemonic });
 
     const refreshAllRooms = async () => {
-      const data = await secretJsClient.getContracts(codeId);
+      if (window.location.hash !== "") {
+        return;
+      }
 
-      this.setState({
-        all_rooms: data,
-      });
+      try {
+        const data = await secretJsClient.getContracts(codeId);
+
+        this.setState({
+          all_rooms: data,
+        });
+      } catch (e) {
+        console.log("refreshAllRooms", e);
+      }
     };
     setTimeout(refreshAllRooms, 0);
     setInterval(refreshAllRooms, 1000);
@@ -101,59 +108,69 @@ class App extends React.Component {
         return;
       }
 
+      if (!this.state.player_a || !this.state.player_b) {
+        return;
+      }
+
       if (
-        !this.state.player_a ||
-        !this.state.player_b ||
-        (this.state.player_a !== this.state.myWalletAddress &&
-          this.state.player_b !== this.state.myWalletAddress)
+        this.state.player_a !== this.state.myWalletAddress &&
+        this.state.player_b !== this.state.myWalletAddress
       ) {
         return;
       }
 
+      if (JSON.stringify(this.state.my_hand) !== JSON.stringify([{}, {}])) {
+        // this should work because when switching room (= switching hash location)
+        // we set an empty state
+        return;
+      }
+
+      const secret = +localStorage.getItem(this.state.game_address);
       try {
-        const secret = +localStorage.getItem(this.state.game_address);
         const data = await secretJsClient.queryContractSmart(
           this.state.game_address,
           { get_my_hand: { secret } }
         );
 
-        console.log("set hand", data);
-
         this.setState({
           my_hand: data,
         });
       } catch (e) {
-        console.log(e);
+        console.log("refreshMyHand", e);
       }
     };
     setTimeout(refreshMyHand, 0);
     setInterval(refreshMyHand, 1000);
 
     const refreshMyWalletBalance = async () => {
-      const data = await secretJsClient.getAccount(myWalletAddress);
+      try {
+        const data = await secretJsClient.getAccount(myWalletAddress);
 
-      if (!data) {
-        this.setState({
-          myWalletBalance: (
-            <span>
-              (No funds - Go get some at{" "}
-              <a
-                href="https://faucet.testnet.enigma.co"
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                https://faucet.testnet.enigma.co
-              </a>
-              )
-            </span>
-          ),
-        });
-      } else {
-        this.setState({
-          myWalletBalance: `(${nf.format(
-            +data.balance[0].amount / 1000000
-          )} SCRT)`,
-        });
+        if (!data) {
+          this.setState({
+            myWalletBalance: (
+              <span>
+                (No funds - Go get some at{" "}
+                <a
+                  href="https://faucet.testnet.enigma.co"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  https://faucet.testnet.enigma.co
+                </a>
+                )
+              </span>
+            ),
+          });
+        } else {
+          this.setState({
+            myWalletBalance: `(${nf.format(
+              +data.balance[0].amount / 1000000
+            )} SCRT)`,
+          });
+        }
+      } catch (e) {
+        console.log("refreshMyWalletBalance", e);
       }
     };
     setTimeout(refreshMyWalletBalance, 0);
@@ -183,7 +200,6 @@ class App extends React.Component {
             player_b_hand: data.player_b_hand,
           });
         } else if (this.state.myWalletAddress === data.player_b) {
-          console.log("player b!");
           this.setState({
             player_a_hand: data.player_a_hand,
             player_b_hand: this.state.my_hand,
@@ -206,9 +222,10 @@ class App extends React.Component {
           stage: data.stage,
           starter: data.starter,
           turn: data.turn,
+          last_play: data.last_play,
         });
       } catch (e) {
-        // Probably table is only after init
+        console.log("refreshTableState", e);
       }
     };
 
