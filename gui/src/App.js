@@ -403,7 +403,7 @@ class App extends React.Component {
     if (window.location.hash === "") {
       return (
         <div style={{ color: "white" }}>
-          <Table style={{ overflow: "visible" }}>
+          <Table>
             {/* wallet */}
             <div
               style={{
@@ -417,43 +417,54 @@ class App extends React.Component {
                 You: {this.state.myWalletAddress} {this.state.myWalletBalance}
               </div>
             </div>
-            <div style={{ textAlign: "center" }}>
-              <Form.Input
-                placeholder="Room name"
-                value={this.state.new_room_name}
-                onChange={(_, { value }) =>
-                  this.setState({ new_room_name: value })
-                }
-              />
-              <Button
-                loading={this.state.createLoading}
-                disabled={this.state.createLoading}
-                onClick={this.createRoom.bind(this)}
+            <div
+              style={{
+                position: "relative",
+                zIndex: 9999,
+              }}
+            >
+              <div
+                style={{
+                  textAlign: "center",
+                }}
               >
-                Create!
-              </Button>
-            </div>
-            <br />
-            <center>
-              <table id="room-list">
-                <thead>
-                  <tr>
-                    <th>Room Name</th>
-                    <th>Address</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {this.state.all_rooms.map((r, i) => (
-                    <tr key={i}>
-                      <td>{r.label}</td>
-                      <td>
-                        <a href={"#" + r.address}>{r.address}</a>
-                      </td>
+                <Form.Input
+                  placeholder="Room name"
+                  value={this.state.new_room_name}
+                  onChange={(_, { value }) =>
+                    this.setState({ new_room_name: value })
+                  }
+                />
+                <Button
+                  loading={this.state.createLoading}
+                  disabled={this.state.createLoading}
+                  onClick={this.createRoom.bind(this)}
+                >
+                  Create!
+                </Button>
+              </div>
+              <br />
+              <center>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Room Name</th>
+                      <th>Address</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </center>
+                  </thead>
+                  <tbody>
+                    {this.state.all_rooms.map((r, i) => (
+                      <tr key={i}>
+                        <td>{r.label}</td>
+                        <td>
+                          <a href={"#" + r.address}>{r.address}</a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </center>
+            </div>
           </Table>
         </div>
       );
