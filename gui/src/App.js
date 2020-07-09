@@ -4,7 +4,7 @@ import * as bip39 from "bip39";
 import { Hand, Table, Card } from "react-casino";
 import { Button, Form } from "semantic-ui-react";
 
-import Slider, { Range } from "rc-slider";
+import Slider from "rc-slider";
 
 import "rc-slider/assets/index.css";
 import "semantic-ui-css/semantic.min.css";
