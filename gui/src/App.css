@@ -4,6 +4,14 @@ div.table-background {
   height: unset !important;
 }
 
+a {
+  color: #fbbd08;
+}
+
+a:hover {
+  color: yellow;
+}
+
 .App {
   text-align: center;
 }
