@@ -437,12 +437,11 @@ class App extends React.Component {
           <div>Waiting for players</div>
           <Button
             loading={this.state.joinLoading}
+            hidden
             disabled={
               this.state.joinLoading ||
-              this.getMe() ||
               (this.state.myWalletBalance &&
-                typeof this.state.myWalletBalance === "string" &&
-                !this.state.myWalletBalance.includes("SCRT"))
+                typeof this.state.myWalletBalance !== "string")
             }
             onClick={this.joinRoom.bind(this)}
           >
@@ -645,19 +644,19 @@ class App extends React.Component {
             >
               Fold
             </Button>
-            {/* <Slider
-              value={10000}
-              color="red"
-              settings={{
-                start: 2,
-                min: 0,
-                max: 10,
-                step: 1,
-                onChange: (value) => {
-                  this.setState({ raiseAmount: value });
-                },
-              }}
-            /> */}
+            <div style={{ padding: 10 }}>
+              <input
+                type="range"
+                min="0"
+                max={this.getMe() ? this.getMe().wallet : 0}
+                value={this.state.raiseAmount}
+                class="slider"
+                onChange={(v, e) => {
+                  console.log(1);
+                  this.setState({ raiseAmount: v });
+                }}
+              />
+            </div>
           </div>
           {/* player b */}
           <div
