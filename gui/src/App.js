@@ -528,6 +528,7 @@ class App extends React.Component {
                 loading={this.state.checkLoading}
                 onClick={this.check.bind(this)}
                 disabled={
+                  this.state.player_a_bet !== this.state.player_b_bet ||
                   !this.state.turn ||
                   this.state.turn !== this.state.myWalletAddress ||
                   this.state.stage.includes("Ended") ||
@@ -544,6 +545,7 @@ class App extends React.Component {
                 loading={this.state.callLoading}
                 onClick={this.call.bind(this)}
                 disabled={
+                  this.state.player_a_bet === this.state.player_b_bet ||
                   !this.state.turn ||
                   this.state.turn !== this.state.myWalletAddress ||
                   this.state.stage.includes("Ended") ||
