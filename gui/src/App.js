@@ -7,7 +7,7 @@ import { Button, Form } from "semantic-ui-react";
 import "semantic-ui-css/semantic.min.css";
 
 const nf = new Intl.NumberFormat();
-const codeId = 11;
+const codeId = 12;
 
 const emptyState = {
   game_address: "",
@@ -25,6 +25,11 @@ const emptyState = {
   stage: "",
   turn: "",
   new_room_name: "",
+  createLoading: false,
+  joinLoading: false,
+  checkLoading: false,
+  callLoading: false,
+  raiseLoading: false,
 };
 
 class App extends React.Component {
@@ -101,7 +106,7 @@ class App extends React.Component {
       }
     };
     setTimeout(refreshAllRooms, 0);
-    setInterval(refreshAllRooms, 1000);
+    setInterval(refreshAllRooms, 200);
 
     const refreshMyHand = async () => {
       if (window.location.hash === "") {
@@ -135,12 +140,22 @@ class App extends React.Component {
         this.setState({
           my_hand: data,
         });
+
+        if (this.state.myWalletAddress === this.state.player_a) {
+          this.setState({
+            player_a_hand: this.state.my_hand,
+          });
+        } else if (this.state.myWalletAddress === this.state.player_b) {
+          this.setState({
+            player_b_hand: this.state.my_hand,
+          });
+        }
       } catch (e) {
         console.log("refreshMyHand", e);
       }
     };
     setTimeout(refreshMyHand, 0);
-    setInterval(refreshMyHand, 1000);
+    setInterval(refreshMyHand, 200);
 
     const refreshMyWalletBalance = async () => {
       try {
@@ -174,10 +189,14 @@ class App extends React.Component {
       }
     };
     setTimeout(refreshMyWalletBalance, 0);
-    setInterval(refreshMyWalletBalance, 10000);
+    setInterval(refreshMyWalletBalance, 2500);
 
     const refreshTableState = async () => {
       if (window.location.hash === "") {
+        return;
+      }
+
+      if (this.state.stage.includes("Ended")) {
         return;
       }
 
@@ -230,16 +249,21 @@ class App extends React.Component {
     };
 
     setTimeout(refreshTableState, 0);
-    setInterval(refreshTableState, 3000);
+    setInterval(refreshTableState, 200);
   }
 
   async createRoom() {
-    await this.state.secretJsClient.instantiate(
-      codeId,
-      {},
-      this.state.new_room_name
-    );
-    this.setState({ new_room_name: "" });
+    this.setState({ createLoading: true });
+    try {
+      await this.state.secretJsClient.instantiate(
+        codeId,
+        {},
+        this.state.new_room_name
+      );
+    } catch (e) {
+      console.log("createRoom", e);
+    }
+    this.setState({ new_room_name: "", createLoading: false });
   }
 
   async joinRoom() {
@@ -248,41 +272,73 @@ class App extends React.Component {
       return;
     }
 
+    this.setState({ joinLoading: true });
+
     let secret = +localStorage.getItem(this.state.game_address);
     if (!secret) {
       const seed = SecretJS.EnigmaUtils.GenerateNewSeed();
       secret = Buffer.from(seed.slice(0, 8)).readUInt32BE(0); // 64 bit
     }
 
-    await this.state.secretJsClient.execute(this.state.game_address, {
-      join: { secret },
-    });
+    try {
+      await this.state.secretJsClient.execute(this.state.game_address, {
+        join: { secret },
+      });
+    } catch (e) {
+      console.log("join", e);
+    }
 
     localStorage.setItem(this.state.game_address, secret);
+
+    this.setState({ joinLoading: false });
   }
 
   async fold() {
-    await this.state.secretJsClient.execute(this.state.game_address, {
-      fold: {},
-    });
+    this.setState({ foldLoading: true });
+    try {
+      await this.state.secretJsClient.execute(this.state.game_address, {
+        fold: {},
+      });
+    } catch (e) {
+      console.log("fold", e);
+    }
+    this.setState({ foldLoading: false });
   }
 
   async check() {
-    await this.state.secretJsClient.execute(this.state.game_address, {
-      check: {},
-    });
+    this.setState({ checkLoading: true });
+    try {
+      await this.state.secretJsClient.execute(this.state.game_address, {
+        check: {},
+      });
+    } catch (e) {
+      console.log("check", e);
+    }
+    this.setState({ checkLoading: false });
   }
 
   async call() {
-    await this.state.secretJsClient.execute(this.state.game_address, {
-      call: {},
-    });
+    this.setState({ callLoading: true });
+    try {
+      await this.state.secretJsClient.execute(this.state.game_address, {
+        call: {},
+      });
+    } catch (e) {
+      console.log("call", e);
+    }
+    this.setState({ callLoading: false });
   }
 
   async raise() {
-    await this.state.secretJsClient.execute(this.state.game_address, {
-      raise: { amount: 10000 },
-    });
+    this.setState({ raiseLoading: true });
+    try {
+      await this.state.secretJsClient.execute(this.state.game_address, {
+        raise: { amount: 10000 },
+      });
+    } catch (e) {
+      console.log("raise", e);
+    }
+    this.setState({ raiseLoading: false });
   }
 
   render() {
@@ -311,7 +367,13 @@ class App extends React.Component {
                     this.setState({ new_room_name: value })
                   }
                 />
-                <Button onClick={this.createRoom.bind(this)}>Create!</Button>
+                <Button
+                  loading={this.state.createLoading}
+                  disabled={this.state.createLoading}
+                  onClick={this.createRoom.bind(this)}
+                >
+                  Create!
+                </Button>
               </div>
               <br />
               <div>All rooms</div>
@@ -337,7 +399,9 @@ class App extends React.Component {
         <span>
           <div>Waiting for players</div>
           <Button
+            loading={this.state.joinLoading}
             disabled={
+              this.state.joinLoading ||
               (this.state.player_a &&
                 this.state.player_a === this.state.myWalletAddress) ||
               (this.state.player_b &&
@@ -461,37 +525,65 @@ class App extends React.Component {
               }}
             >
               <Button
+                loading={this.state.checkLoading}
                 onClick={this.check.bind(this)}
                 disabled={
                   !this.state.turn ||
-                  this.state.turn !== this.state.myWalletAddress
+                  this.state.turn !== this.state.myWalletAddress ||
+                  this.state.stage.includes("Ended") ||
+                  this.state.stage.includes("Waiting") ||
+                  this.state.callLoading ||
+                  this.state.raiseLoading ||
+                  this.state.foldLoading ||
+                  this.state.checkLoading
                 }
               >
                 Check
               </Button>
               <Button
+                loading={this.state.callLoading}
                 onClick={this.call.bind(this)}
                 disabled={
                   !this.state.turn ||
-                  this.state.turn !== this.state.myWalletAddress
+                  this.state.turn !== this.state.myWalletAddress ||
+                  this.state.stage.includes("Ended") ||
+                  this.state.stage.includes("Waiting") ||
+                  this.state.callLoading ||
+                  this.state.raiseLoading ||
+                  this.state.foldLoading ||
+                  this.state.checkLoading
                 }
               >
                 Call
               </Button>
               <Button
+                loading={this.state.raiseLoading}
                 onClick={this.raise.bind(this)}
                 disabled={
                   !this.state.turn ||
-                  this.state.turn !== this.state.myWalletAddress
+                  this.state.turn !== this.state.myWalletAddress ||
+                  this.state.stage.includes("Ended") ||
+                  this.state.stage.includes("Waiting") ||
+                  this.state.callLoading ||
+                  this.state.raiseLoading ||
+                  this.state.foldLoading ||
+                  this.state.checkLoading
                 }
               >
                 Raise
               </Button>
               <Button
+                loading={this.state.foldLoading}
                 onClick={this.fold.bind(this)}
                 disabled={
                   !this.state.turn ||
-                  this.state.turn !== this.state.myWalletAddress
+                  this.state.turn !== this.state.myWalletAddress ||
+                  this.state.stage.includes("Ended") ||
+                  this.state.stage.includes("Waiting") ||
+                  this.state.callLoading ||
+                  this.state.raiseLoading ||
+                  this.state.foldLoading ||
+                  this.state.checkLoading
                 }
               >
                 Fold
