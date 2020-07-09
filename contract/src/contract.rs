@@ -223,6 +223,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 Stage::EndedWinnerA => return Err(generic_err("The game is over.")),
                 Stage::EndedWinnerB => return Err(generic_err("The game is over.")),
                 Stage::EndedDraw => return Err(generic_err("The game is over.")),
+                Stage::WaitingForPlayersToJoin => {
+                    return Err(generic_err("The game hasn't started yet!"))
+                }
                 _ => { /* continue */ }
             };
 
@@ -280,6 +283,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 Stage::EndedWinnerA => return Err(generic_err("The game is over.")),
                 Stage::EndedWinnerB => return Err(generic_err("The game is over.")),
                 Stage::EndedDraw => return Err(generic_err("The game is over.")),
+                Stage::WaitingForPlayersToJoin => {
+                    return Err(generic_err("The game hasn't started yet!"))
+                }
                 _ => { /* continue */ }
             };
 
@@ -308,7 +314,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 }
 
                 table.last_play = Some(String::from("Player A called"));
-                table.turn = table.player_b.clone();
             } else {
                 // I'm player B
                 if table.player_b_bet >= table.player_a_bet {
@@ -324,12 +329,10 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 }
 
                 table.last_play = Some(String::from("Player B called"));
-                table.turn = table.player_a.clone();
             }
 
-            if table.turn == table.starter {
-                table.goto_next_stage(deps);
-            }
+            table.turn = table.player_a.clone();
+            table.goto_next_stage(deps);
 
             deps.storage
                 .set(b"table", &serde_json::to_vec(&table).unwrap());
@@ -343,6 +346,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 Stage::EndedWinnerA => return Err(generic_err("The game is over.")),
                 Stage::EndedWinnerB => return Err(generic_err("The game is over.")),
                 Stage::EndedDraw => return Err(generic_err("The game is over.")),
+                Stage::WaitingForPlayersToJoin => {
+                    return Err(generic_err("The game hasn't started yet!"))
+                }
                 _ => { /* continue */ }
             };
 
@@ -376,6 +382,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 Stage::EndedWinnerA => return Err(generic_err("The game is over.")),
                 Stage::EndedWinnerB => return Err(generic_err("The game is over.")),
                 Stage::EndedDraw => return Err(generic_err("The game is over.")),
+                Stage::WaitingForPlayersToJoin => {
+                    return Err(generic_err("The game hasn't started yet!"))
+                }
                 _ => { /* continue */ }
             };
 
