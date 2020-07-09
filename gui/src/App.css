@@ -1,3 +1,9 @@
+div.table-background {
+  position: unset !important;
+  width: unset !important;
+  height: unset !important;
+}
+
 .App {
   text-align: center;
 }

@@ -7,6 +7,7 @@ import Slider from "rc-slider";
 
 import "rc-slider/assets/index.css";
 import "semantic-ui-css/semantic.min.css";
+import "./App.css";
 
 const PokerSolver = require("pokersolver").Hand;
 
