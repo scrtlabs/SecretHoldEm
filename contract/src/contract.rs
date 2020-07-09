@@ -522,9 +522,15 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             table.player_b_wants_rematch = false;
 
             match table.stage {
-                Stage::EndedWinnerA => table.player_a_win_counter += 1,
-                Stage::EndedWinnerB => table.player_b_win_counter += 1,
-                Stage::EndedDraw => table.tie_counter += 1,
+                Stage::EndedWinnerA => {
+                    table.player_a_win_counter += 1;
+                }
+                Stage::EndedWinnerB => {
+                    table.player_b_win_counter += 1;
+                }
+                Stage::EndedDraw => {
+                    table.tie_counter += 1;
+                }
                 _ => {
                     return Err(generic_err("The game isn't over yet, this is weird that you've even gotten so far in the function logic."));
                 }
