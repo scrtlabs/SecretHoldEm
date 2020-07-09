@@ -458,12 +458,44 @@ class App extends React.Component {
       );
     }
 
+    const handA = this.state.player_a_hand
+      .concat(this.state.community_cards)
+      .map(stateCardToPokerSoverCard)
+      .filter((x) => x);
+    let rankHandA = "Unknown";
+    if (handA.length >= 5) {
+      try {
+        rankHandA = PokerSolver.solve(handA).descr;
+      } catch (e) {}
+    }
+
+    const handB = this.state.player_b_hand
+      .concat(this.state.community_cards)
+      .map(stateCardToPokerSoverCard)
+      .filter((x) => x);
+    let rankHandB = "Unknown";
+    if (handB.length >= 5) {
+      try {
+        rankHandB = PokerSolver.solve(handB).descr;
+      } catch (e) {}
+    }
+
     let stage = this.state.stage;
     if (stage.includes("EndedWinner")) {
-      stage = stage.replace("EndedWinner", "");
-      stage = `Player ${stage} Wins!`;
+      const winner = stage.replace("EndedWinner", "");
+      stage = (
+        <span>
+          <div>
+            <b>Player {winner} Wins!</b>
+          </div>
+          <div>
+            <b>{winner === "A" ? rankHandA : rankHandB}</b> vs a lousy{" "}
+            <b>{winner === "A" ? rankHandB : rankHandA}</b>
+          </div>
+        </span>
+      );
     } else if (stage.includes("EndedDraw")) {
-      stage = "It's a Tie!";
+      stage = `It's a Tie of ${rankHandA}!`;
     } else if (stage === "WaitingForPlayersToJoin") {
       stage = (
         <span>
@@ -514,28 +546,6 @@ class App extends React.Component {
     let room = "";
     if (this.state.game_address) {
       room = "Room: " + this.state.game_address;
-    }
-
-    const handA = this.state.player_a_hand
-      .concat(this.state.community_cards)
-      .map(stateCardToPokerSoverCard)
-      .filter((x) => x);
-    let rankHandA = "Unknown";
-    if (handA.length >= 5) {
-      try {
-        rankHandA = PokerSolver.solve(handA).descr;
-      } catch (e) {}
-    }
-
-    const handB = this.state.player_b_hand
-      .concat(this.state.community_cards)
-      .map(stateCardToPokerSoverCard)
-      .filter((x) => x);
-    let rankHandB = "Unknown";
-    if (handB.length >= 5) {
-      try {
-        rankHandB = PokerSolver.solve(handB).descr;
-      } catch (e) {}
     }
 
     return (
@@ -611,7 +621,9 @@ class App extends React.Component {
                 ? " (You)"
                 : ""}
             </div>
-            <div>Hand: {rankHandA}</div>
+            <div>
+              Hand: <b>{rankHandA}</b>
+            </div>
             <div>Credits left: {nf.format(this.state.player_a_wallet)}</div>
             <div>{this.state.player_a}</div>
           </div>
@@ -735,7 +747,9 @@ class App extends React.Component {
                 ? " (You)"
                 : ""}
             </div>
-            <div>Hand: {rankHandB}</div>
+            <div>
+              Hand: <b>{rankHandB}</b>
+            </div>
             <div>Credits left: {nf.format(this.state.player_b_wallet)}</div>
             <div>{this.state.player_b}</div>
           </div>
