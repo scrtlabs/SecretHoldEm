@@ -456,7 +456,7 @@ class App extends React.Component {
 
     let turn = "Player A";
     let turnDirection = "->";
-    let lastPlay = `Last play: ${this.state.last_play}`;
+    let lastPlay = this.state.last_play || "";
     if (this.state.turn === this.state.player_b) {
       turn = "Player B";
       turnDirection = "<-";
@@ -464,14 +464,10 @@ class App extends React.Component {
     turn = "Turn: " + turn;
     if (
       !this.state.stage ||
+      !this.state.turn ||
       this.state.stage.includes("Ended") ||
       this.state.stage.includes("Waiting")
     ) {
-      turn = "";
-      turnDirection = "";
-      lastPlay = "";
-    }
-    if (!this.state.turn) {
       turn = "";
       turnDirection = "";
       lastPlay = "";
@@ -515,19 +511,25 @@ class App extends React.Component {
           >
             <div>{room}</div>
             <div>{stage}</div>
-            <div>{lastPlay}</div>
             <div>{turn}</div>
             <div>{turnDirection}</div>
-
             <br />
             {this.state.community_cards.map((c, i) =>
               stateCardToReactCard(c, true, i)
             )}
             <div style={{ padding: 35, textAlign: "center" }}>
-              <span style={{ marginRight: 250 }}>
+              <span style={{ marginRight: 125 }}>
                 A Total Bet: {nf.format(this.state.player_b_bet)}
               </span>
-              <span>B Total Bet: {nf.format(this.state.player_a_bet)}</span>
+              <span style={{ marginLeft: 125 }}>
+                B Total Bet: {nf.format(this.state.player_a_bet)}
+              </span>
+            </div>
+            <div
+              hidden={!lastPlay}
+              style={{ padding: 35, textAlign: "center" }}
+            >
+              {lastPlay}
             </div>
           </div>
           {/* player a */}
