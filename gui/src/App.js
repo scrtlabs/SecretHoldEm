@@ -12,7 +12,7 @@ import "./App.css";
 const PokerSolver = require("pokersolver").Hand;
 
 const nf = new Intl.NumberFormat();
-const codeId = 21;
+const codeId = 23;
 
 const emptyState = {
   game_address: "",
@@ -136,7 +136,10 @@ class App extends React.Component {
         return;
       }
 
-      if (JSON.stringify(this.state.my_hand) !== JSON.stringify([{}, {}])) {
+      if (
+        JSON.stringify(this.state.my_hand) !== JSON.stringify([{}, {}]) &&
+        this.state.stage != "PreFlop"
+      ) {
         // this should work because when switching room (= switching hash location)
         // we set an empty state
         return;
@@ -205,10 +208,6 @@ class App extends React.Component {
 
     const refreshTableState = async () => {
       if (window.location.hash === "") {
-        return;
-      }
-
-      if (this.state.stage.includes("Ended")) {
         return;
       }
 
@@ -616,10 +615,10 @@ class App extends React.Component {
             </Button>
           ) : null}
           {this.state.player_a_wants_rematch ? (
-            <div>Player A wants a rematch! Waiting for player B.</div>
+            <div style={{ padding: 10 }}>Rematch: Waiting for player B.</div>
           ) : null}
-          {this.state.player_a_wants_rematch ? (
-            <div>Player B wants a rematch! Waiting for player A.</div>
+          {this.state.player_b_wants_rematch ? (
+            <div style={{ padding: 10 }}>Rematch: Waiting for player A.</div>
           ) : null}
         </div>
       );
