@@ -488,10 +488,14 @@ class App extends React.Component {
           <div>
             <b>Player {winner} Wins!</b>
           </div>
-          <div>
-            <b>{winner === "A" ? rankHandA : rankHandB}</b> vs a lousy{" "}
-            <b>{winner === "A" ? rankHandB : rankHandA}</b>
-          </div>
+
+          {typeof this.state.last_play === "string" &&
+          !this.state.last_play.includes("fold") ? (
+            <div>
+              <b>{winner === "A" ? rankHandA : rankHandB}</b> vs a lousy{" "}
+              <b>{winner === "A" ? rankHandB : rankHandA}</b>
+            </div>
+          ) : null}
         </span>
       );
     } else if (stage.includes("EndedDraw")) {
