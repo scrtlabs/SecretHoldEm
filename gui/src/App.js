@@ -35,7 +35,13 @@ const emptyState = {
   checkLoading: false,
   callLoading: false,
   raiseLoading: false,
-  raiseAmount: 0,
+  raiseAmount: 25000,
+  rematchLoading: false,
+  player_a_wants_rematch: false,
+  player_b_wants_rematch: false,
+  player_a_win_counter: 0,
+  player_b_win_counter: 0,
+  tie_counter: 0,
 };
 
 class App extends React.Component {
@@ -248,6 +254,12 @@ class App extends React.Component {
           starter: data.starter,
           turn: data.turn,
           last_play: data.last_play,
+          player_a_wants_rematch: data.player_a_wants_rematch,
+          player_b_wants_rematch: data.player_b_wants_rematch,
+
+          player_a_win_counter: data.player_a_win_counter,
+          player_b_win_counter: data.player_b_win_counter,
+          tie_counter: data.tie_counter,
         });
       } catch (e) {
         console.log("refreshTableState", e);
@@ -335,6 +347,18 @@ class App extends React.Component {
     this.setState({ callLoading: false });
   }
 
+  async rematch() {
+    this.setState({ rematchLoading: true });
+    try {
+      await this.state.secretJsClient.execute(this.state.game_address, {
+        rematch: {},
+      });
+    } catch (e) {
+      console.log("rematch", e);
+    }
+    this.setState({ rematchLoading: false });
+  }
+
   async raise() {
     this.setState({ raiseLoading: true });
     try {
@@ -344,7 +368,7 @@ class App extends React.Component {
     } catch (e) {
       console.log("raise", e);
     }
-    this.setState({ raiseLoading: false, raiseAmount: 0 });
+    this.setState({ raiseLoading: false, raiseAmount: 25000 });
   }
 
   getMe() {
@@ -358,6 +382,7 @@ class App extends React.Component {
         address: this.state.player_a,
         bet: this.state.player_a_bet,
         wallet: this.state.player_a_wallet,
+        wants_rematch: this.state.player_a_wants_rematch,
       };
     }
 
@@ -367,6 +392,7 @@ class App extends React.Component {
         address: this.state.player_b,
         bet: this.state.player_b_bet,
         wallet: this.state.player_b_wallet,
+        wants_rematch: this.state.player_b_wants_rematch,
       };
     }
 
@@ -384,6 +410,7 @@ class App extends React.Component {
         address: this.state.player_a,
         bet: this.state.player_a_bet,
         wallet: this.state.player_a_wallet,
+        wants_rematch: this.state.player_a_wants_rematch,
       };
     }
 
@@ -393,6 +420,7 @@ class App extends React.Component {
         address: this.state.player_b,
         bet: this.state.player_b_bet,
         wallet: this.state.player_b_wallet,
+        wants_rematch: this.state.player_b_wants_rematch,
       };
     }
 
@@ -413,7 +441,12 @@ class App extends React.Component {
                 padding: 10,
               }}
             >
-              <div>
+              <div
+                style={{
+                  position: "relative",
+                  zIndex: 9999,
+                }}
+              >
                 You: {this.state.myWalletAddress} {this.state.myWalletBalance}
               </div>
             </div>
@@ -566,6 +599,32 @@ class App extends React.Component {
       }
     }
 
+    let rematch = null;
+    if (
+      typeof this.state.stage === "string" &&
+      this.state.stage.includes("Ended")
+    ) {
+      rematch = (
+        <div>
+          {this.getMe() ? (
+            <Button
+              loading={this.state.rematchLoading || this.getMe().wants_rematch}
+              onClick={this.rematch.bind(this)}
+              disabled={this.state.rematchLoading || this.getMe().wants_rematch}
+            >
+              Rematch!
+            </Button>
+          ) : null}
+          {this.state.player_a_wants_rematch ? (
+            <div>Player A wants a rematch! Waiting for player B.</div>
+          ) : null}
+          {this.state.player_a_wants_rematch ? (
+            <div>Player B wants a rematch! Waiting for player A.</div>
+          ) : null}
+        </div>
+      );
+    }
+
     let room = "";
     if (this.state.game_address) {
       room = "Room: " + this.state.game_address;
@@ -583,7 +642,12 @@ class App extends React.Component {
               padding: 10,
             }}
           >
-            <div>
+            <div
+              style={{
+                position: "relative",
+                zIndex: 9999,
+              }}
+            >
               You: {this.state.myWalletAddress} {this.state.myWalletBalance}
             </div>
           </div>
@@ -596,33 +660,54 @@ class App extends React.Component {
               padding: 10,
             }}
           >
-            <a href="/#">Return to loby</a>
+            <a
+              style={{
+                position: "relative",
+                zIndex: 9999,
+              }}
+              href="/#"
+            >
+              Return to loby
+            </a>
           </div>
           {/* community cards */}
           <div
             style={{ position: "absolute", width: "100%", textAlign: "center" }}
           >
-            <div>{room}</div>
-            <div>{stage}</div>
-            <div>{turn}</div>
-            <div>{turnDirection}</div>
-            <br />
-            {this.state.community_cards.map((c, i) =>
-              stateCardToReactCard(c, true, i)
-            )}
-            <div style={{ padding: 35, textAlign: "center" }}>
-              <span style={{ marginRight: 125 }}>
-                B Total Bet: {nf.format(this.state.player_b_bet)}
-              </span>
-              <span style={{ marginLeft: 125 }}>
-                A Total Bet: {nf.format(this.state.player_a_bet)}
-              </span>
-            </div>
             <div
-              hidden={!lastPlay}
-              style={{ padding: 35, textAlign: "center" }}
+              style={{
+                position: "relative",
+                zIndex: 9999,
+              }}
             >
-              {lastPlay}
+              <div>{room}</div>
+              <div>{stage}</div>
+              <div>{turn}</div>
+              <div>{turnDirection}</div>
+              <br />
+              {this.state.community_cards.map((c, i) =>
+                stateCardToReactCard(c, true, i)
+              )}
+              <div style={{ padding: 35, textAlign: "center" }}>
+                <span style={{ marginRight: 125 }}>
+                  B Total Bet: {nf.format(this.state.player_b_bet)}
+                </span>
+                <span style={{ marginLeft: 125 }}>
+                  A Total Bet: {nf.format(this.state.player_a_bet)}
+                </span>
+              </div>
+              <div
+                hidden={!lastPlay}
+                style={{ padding: 35, textAlign: "center" }}
+              >
+                {lastPlay}
+              </div>
+              <div
+                hidden={!rematch}
+                style={{ padding: 35, textAlign: "center" }}
+              >
+                {rematch}
+              </div>
             </div>
           </div>
           {/* player a */}
