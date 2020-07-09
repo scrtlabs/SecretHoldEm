@@ -440,7 +440,9 @@ class App extends React.Component {
             disabled={
               this.state.joinLoading ||
               this.getMe() ||
-              !this.state.myWalletBalance.includes("SCRT")
+              (this.state.myWalletBalance &&
+                typeof this.state.myWalletBalance === "string" &&
+                !this.state.myWalletBalance.includes("SCRT"))
             }
             onClick={this.joinRoom.bind(this)}
           >
