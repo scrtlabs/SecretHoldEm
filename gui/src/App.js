@@ -834,7 +834,9 @@ class App extends React.Component {
                 this.state.raiseAmount <= 0
               }
             >
-              Raise {nf.format(this.state.raiseAmount)}
+              {this.getMe() && this.state.raiseAmount === this.getMe().wallet
+                ? "All in!"
+                : `Raise ${nf.format(this.state.raiseAmount)}`}
             </Button>
             <Button
               loading={this.state.foldLoading}
