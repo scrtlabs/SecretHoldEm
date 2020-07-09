@@ -2,9 +2,11 @@ import React from "react";
 import * as SecretJS from "secretjs";
 import * as bip39 from "bip39";
 import { Hand, Table, Card } from "react-casino";
-
-import { Slider } from "react-semantic-ui-range";
 import { Button, Form } from "semantic-ui-react";
+
+import Slider, { Range } from "rc-slider";
+
+import "rc-slider/assets/index.css";
 import "semantic-ui-css/semantic.min.css";
 
 const nf = new Intl.NumberFormat();
@@ -335,12 +337,12 @@ class App extends React.Component {
     this.setState({ raiseLoading: true });
     try {
       await this.state.secretJsClient.execute(this.state.game_address, {
-        raise: { amount: 10000 },
+        raise: { amount: this.state.raiseAmount },
       });
     } catch (e) {
       console.log("raise", e);
     }
-    this.setState({ raiseLoading: false });
+    this.setState({ raiseLoading: false, raiseAmount: 10000 });
   }
 
   getMe() {
@@ -358,6 +360,32 @@ class App extends React.Component {
     }
 
     if (this.state.myWalletAddress === this.state.player_b) {
+      return {
+        player: "B",
+        address: this.state.player_b,
+        bet: this.state.player_b_bet,
+        wallet: this.state.player_b_wallet,
+      };
+    }
+
+    return null;
+  }
+
+  getOther() {
+    if (!this.state.myWalletAddress) {
+      return null;
+    }
+
+    if (this.state.myWalletAddress !== this.state.player_a) {
+      return {
+        player: "A",
+        address: this.state.player_a,
+        bet: this.state.player_a_bet,
+        wallet: this.state.player_a_wallet,
+      };
+    }
+
+    if (this.state.myWalletAddress !== this.state.player_b) {
       return {
         player: "B",
         address: this.state.player_b,
@@ -626,7 +654,7 @@ class App extends React.Component {
                 this.state.checkLoading
               }
             >
-              Raise
+              Raise {nf.format(this.state.raiseAmount)}
             </Button>
             <Button
               loading={this.state.foldLoading}
@@ -644,19 +672,20 @@ class App extends React.Component {
             >
               Fold
             </Button>
-            <div style={{ padding: 10 }}>
-              <input
-                type="range"
-                min="0"
-                max={this.getMe() ? this.getMe().wallet : 0}
-                value={this.state.raiseAmount}
-                class="slider"
-                onChange={(v, e) => {
-                  console.log(1);
-                  this.setState({ raiseAmount: v });
-                }}
-              />
-            </div>
+            <center>
+              <div style={{ padding: 10, width: "300px" }}>
+                <Slider
+                  min={1}
+                  value={this.state.raiseAmount}
+                  max={
+                    this.getOther() && this.getMe()
+                      ? this.getMe().wallet - this.getOther().bet
+                      : 1
+                  }
+                  onChange={(v) => this.setState({ raiseAmount: v })}
+                />
+              </div>
+            </center>
           </div>
           {/* player b */}
           <div
