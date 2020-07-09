@@ -78,9 +78,6 @@ secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 3 -b block -y |
 # Table:
 secretcli q compute contract-state smart "$CONTRACT" '{"get_public_data":{}}' | jq .
 
-echo $CONTRACT
-exit
-
 # A checks
 secretcli tx compute execute "$CONTRACT" '{"check":{}}' --from 1 -b block -y |
     jq .txhash |
