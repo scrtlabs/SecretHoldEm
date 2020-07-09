@@ -437,7 +437,7 @@ class App extends React.Component {
               <table id="room-list">
                 <thead>
                   <tr>
-                    <th>Name</th>
+                    <th>Room Name</th>
                     <th>Address</th>
                   </tr>
                 </thead>
