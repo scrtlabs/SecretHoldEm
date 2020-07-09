@@ -138,7 +138,7 @@ class App extends React.Component {
 
       if (
         JSON.stringify(this.state.my_hand) !== JSON.stringify([{}, {}]) &&
-        this.state.stage != "PreFlop"
+        this.state.stage !== "PreFlop"
       ) {
         // this should work because when switching room (= switching hash location)
         // we set an empty state
