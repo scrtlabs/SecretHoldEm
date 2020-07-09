@@ -542,8 +542,6 @@ function stateCardToReactCard(c, component = false, index) {
     face = "8";
   } else if (value === "Nine") {
     face = "9";
-  } else if (value === "Ten") {
-    face = "10";
   } else {
     face = value[0];
   }
