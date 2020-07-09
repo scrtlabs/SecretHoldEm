@@ -558,7 +558,11 @@ class App extends React.Component {
                 width: "100%",
                 textAlign: "center",
               }}
-              hidden={!this.getMe()}
+              hidden={
+                !this.getMe() ||
+                this.state.stage.includes("Ended") ||
+                this.state.stage.includes("Waiting")
+              }
             >
               <Button
                 loading={this.state.checkLoading}
