@@ -109,6 +109,7 @@ class App extends React.Component {
       }
 
       try {
+        console.log("refreshAllRooms");
         const data = await secretJsClient.getContracts(codeId);
 
         this.setState({
@@ -148,6 +149,8 @@ class App extends React.Component {
 
       const secret = +localStorage.getItem(this.state.game_address);
       try {
+        console.log("refreshMyHand");
+
         const data = await secretJsClient.queryContractSmart(
           this.state.game_address,
           { get_my_hand: { secret } }
@@ -175,6 +178,8 @@ class App extends React.Component {
 
     const refreshMyWalletBalance = async () => {
       try {
+        console.log("refreshMyWalletBalance");
+
         const data = await secretJsClient.getAccount(myWalletAddress);
 
         if (!data) {
@@ -213,6 +218,8 @@ class App extends React.Component {
       }
 
       try {
+        console.log("refreshTableState");
+
         const data = await secretJsClient.queryContractSmart(
           this.state.game_address,
           { get_public_data: {} }
