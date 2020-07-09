@@ -13,6 +13,7 @@ const PokerSolver = require("pokersolver").Hand;
 
 const nf = new Intl.NumberFormat();
 const codeId = 23;
+const refreshTableStateInterval = 1000;
 
 const emptyState = {
   game_address: "",
@@ -118,7 +119,7 @@ class App extends React.Component {
       }
     };
     setTimeout(refreshAllRooms, 0);
-    setInterval(refreshAllRooms, 200);
+    setInterval(refreshAllRooms, refreshTableStateInterval);
 
     const refreshMyHand = async () => {
       if (window.location.hash === "") {
@@ -170,7 +171,7 @@ class App extends React.Component {
       }
     };
     setTimeout(refreshMyHand, 0);
-    setInterval(refreshMyHand, 200);
+    setInterval(refreshMyHand, refreshTableStateInterval);
 
     const refreshMyWalletBalance = async () => {
       try {
@@ -204,7 +205,7 @@ class App extends React.Component {
       }
     };
     setTimeout(refreshMyWalletBalance, 0);
-    setInterval(refreshMyWalletBalance, 2500);
+    setInterval(refreshMyWalletBalance, refreshTableStateInterval * 5);
 
     const refreshTableState = async () => {
       if (window.location.hash === "") {
@@ -266,7 +267,7 @@ class App extends React.Component {
     };
 
     setTimeout(refreshTableState, 0);
-    setInterval(refreshTableState, 200);
+    setInterval(refreshTableState, refreshTableStateInterval);
   }
 
   async createRoom() {
@@ -280,7 +281,10 @@ class App extends React.Component {
     } catch (e) {
       console.log("createRoom", e);
     }
-    this.setState({ new_room_name: "", createLoading: false });
+    setTimeout(
+      () => this.setState({ new_room_name: "", createLoading: false }),
+      refreshTableStateInterval
+    );
   }
 
   async joinRoom() {
@@ -307,7 +311,10 @@ class App extends React.Component {
 
     localStorage.setItem(this.state.game_address, secret);
 
-    this.setState({ joinLoading: false });
+    setTimeout(
+      () => this.setState({ joinLoading: false }),
+      refreshTableStateInterval
+    );
   }
 
   async fold() {
@@ -319,7 +326,11 @@ class App extends React.Component {
     } catch (e) {
       console.log("fold", e);
     }
-    this.setState({ foldLoading: false });
+
+    setTimeout(
+      () => this.setState({ foldLoading: false }),
+      refreshTableStateInterval
+    );
   }
 
   async check() {
@@ -331,7 +342,11 @@ class App extends React.Component {
     } catch (e) {
       console.log("check", e);
     }
-    this.setState({ checkLoading: false });
+
+    setTimeout(
+      () => this.setState({ checkLoading: false }),
+      refreshTableStateInterval
+    );
   }
 
   async call() {
@@ -343,19 +358,11 @@ class App extends React.Component {
     } catch (e) {
       console.log("call", e);
     }
-    this.setState({ callLoading: false });
-  }
 
-  async rematch() {
-    this.setState({ rematchLoading: true });
-    try {
-      await this.state.secretJsClient.execute(this.state.game_address, {
-        rematch: {},
-      });
-    } catch (e) {
-      console.log("rematch", e);
-    }
-    this.setState({ rematchLoading: false });
+    setTimeout(
+      () => this.setState({ callLoading: false }),
+      refreshTableStateInterval
+    );
   }
 
   async raise() {
@@ -367,7 +374,25 @@ class App extends React.Component {
     } catch (e) {
       console.log("raise", e);
     }
-    this.setState({ raiseLoading: false, raiseAmount: 25000 });
+    setTimeout(
+      () => this.setState({ raiseLoading: false, raiseAmount: 25000 }),
+      refreshTableStateInterval
+    );
+  }
+
+  async rematch() {
+    this.setState({ rematchLoading: true });
+    try {
+      await this.state.secretJsClient.execute(this.state.game_address, {
+        rematch: {},
+      });
+    } catch (e) {
+      console.log("rematch", e);
+    }
+    setTimeout(
+      () => this.setState({ rematchLoading: false }),
+      refreshTableStateInterval
+    );
   }
 
   getMe() {
