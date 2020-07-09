@@ -472,6 +472,12 @@ class App extends React.Component {
       turnDirection = "";
       lastPlay = "";
     }
+    if (
+      typeof this.state.last_play === "string" &&
+      this.state.last_play.includes("fold")
+    ) {
+      lastPlay = this.state.last_play;
+    }
 
     let room = "";
     if (this.state.game_address) {
@@ -542,6 +548,9 @@ class App extends React.Component {
               textAlign: "center",
             }}
           >
+            {turn.includes("Player A") ? (
+              <div class="ui active inline loader" />
+            ) : null}
             <div>
               Player A
               {this.state.player_a === this.state.myWalletAddress
@@ -636,7 +645,7 @@ class App extends React.Component {
             >
               Fold
             </Button>
-            <Slider
+            {/* <Slider
               value={10000}
               color="red"
               settings={{
@@ -648,7 +657,7 @@ class App extends React.Component {
                   this.setState({ raiseAmount: value });
                 },
               }}
-            />
+            /> */}
           </div>
           {/* player b */}
           <div
@@ -660,6 +669,9 @@ class App extends React.Component {
               textAlign: "center",
             }}
           >
+            {turn.includes("Player B") ? (
+              <div class="ui active inline loader" />
+            ) : null}
             <div>
               Player B{" "}
               {this.state.player_b === this.state.myWalletAddress
