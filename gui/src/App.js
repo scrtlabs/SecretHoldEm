@@ -33,7 +33,7 @@ const emptyState = {
   checkLoading: false,
   callLoading: false,
   raiseLoading: false,
-  raiseAmount: 10000,
+  raiseAmount: 0,
 };
 
 class App extends React.Component {
@@ -342,7 +342,7 @@ class App extends React.Component {
     } catch (e) {
       console.log("raise", e);
     }
-    this.setState({ raiseLoading: false, raiseAmount: 10000 });
+    this.setState({ raiseLoading: false, raiseAmount: 0 });
   }
 
   getMe() {
@@ -552,10 +552,10 @@ class App extends React.Component {
             )}
             <div style={{ padding: 35, textAlign: "center" }}>
               <span style={{ marginRight: 125 }}>
-                A Total Bet: {nf.format(this.state.player_b_bet)}
+                B Total Bet: {nf.format(this.state.player_b_bet)}
               </span>
               <span style={{ marginLeft: 125 }}>
-                B Total Bet: {nf.format(this.state.player_a_bet)}
+                A Total Bet: {nf.format(this.state.player_a_bet)}
               </span>
             </div>
             <div
@@ -576,7 +576,7 @@ class App extends React.Component {
             }}
           >
             {turn.includes("Player A") ? (
-              <div class="ui active inline loader" />
+              <div className="ui active inline loader" />
             ) : null}
             <div>
               Player A
@@ -651,7 +651,8 @@ class App extends React.Component {
                 this.state.callLoading ||
                 this.state.raiseLoading ||
                 this.state.foldLoading ||
-                this.state.checkLoading
+                this.state.checkLoading ||
+                this.state.raiseAmount <= 0
               }
             >
               Raise {nf.format(this.state.raiseAmount)}
@@ -675,12 +676,12 @@ class App extends React.Component {
             <center>
               <div style={{ padding: 10, width: "300px" }}>
                 <Slider
-                  min={1}
+                  min={0}
                   value={this.state.raiseAmount}
                   max={
                     this.getOther() && this.getMe()
-                      ? this.getMe().wallet - this.getOther().bet
-                      : 1
+                      ? 1000000 - this.getOther().bet
+                      : 0
                   }
                   onChange={(v) => this.setState({ raiseAmount: v })}
                 />
@@ -698,7 +699,7 @@ class App extends React.Component {
             }}
           >
             {turn.includes("Player B") ? (
-              <div class="ui active inline loader" />
+              <div className="ui active inline loader" />
             ) : null}
             <div>
               Player B{" "}
