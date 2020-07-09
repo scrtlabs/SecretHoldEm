@@ -362,6 +362,7 @@ class App extends React.Component {
             <center>
               <div>
                 <Form.Input
+                  placeholder="Room name"
                   value={this.state.new_room_name}
                   onChange={(_, { value }) =>
                     this.setState({ new_room_name: value })
