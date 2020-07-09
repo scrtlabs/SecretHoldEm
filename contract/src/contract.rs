@@ -248,7 +248,11 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 Stage::WaitingForPlayersToJoin => {
                     return Err(generic_err("The game hasn't started yet!"))
                 }
-                _ => { /* continue */ }
+
+                Stage::PreFlop => { /* continue */ }
+                Stage::Flop => { /* continue */ }
+                Stage::Turn => { /* continue */ }
+                Stage::River => { /* continue */ }
             };
 
             let me = Some(deps.api.human_address(&env.message.sender).unwrap());
@@ -308,7 +312,11 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 Stage::WaitingForPlayersToJoin => {
                     return Err(generic_err("The game hasn't started yet!"))
                 }
-                _ => { /* continue */ }
+
+                Stage::PreFlop => { /* continue */ }
+                Stage::Flop => { /* continue */ }
+                Stage::Turn => { /* continue */ }
+                Stage::River => { /* continue */ }
             };
 
             let me = Some(deps.api.human_address(&env.message.sender).unwrap());
@@ -365,7 +373,11 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 Stage::WaitingForPlayersToJoin => {
                     return Err(generic_err("The game hasn't started yet!"))
                 }
-                _ => { /* continue */ }
+
+                Stage::PreFlop => { /* continue */ }
+                Stage::Flop => { /* continue */ }
+                Stage::Turn => { /* continue */ }
+                Stage::River => { /* continue */ }
             };
 
             let me = Some(deps.api.human_address(&env.message.sender).unwrap());
@@ -401,7 +413,11 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 Stage::WaitingForPlayersToJoin => {
                     return Err(generic_err("The game hasn't started yet!"))
                 }
-                _ => { /* continue */ }
+
+                Stage::PreFlop => { /* continue */ }
+                Stage::Flop => { /* continue */ }
+                Stage::Turn => { /* continue */ }
+                Stage::River => { /* continue */ }
             };
 
             let me = Some(deps.api.human_address(&env.message.sender).unwrap());
@@ -446,7 +462,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 Stage::Flop => return Err(generic_err("We're in a middle of a game here.")),
                 Stage::Turn => return Err(generic_err("We're in a middle of a game here.")),
                 Stage::River => return Err(generic_err("We're in a middle of a game here.")),
-                _ => { /* continue */ }
+                Stage::EndedWinnerA => { /* continue */ }
+                Stage::EndedWinnerB => { /* continue */ }
+                Stage::EndedDraw => { /* continue */ }
             };
 
             let me = Some(deps.api.human_address(&env.message.sender).unwrap());
@@ -502,6 +520,15 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
             table.player_a_wants_rematch = false;
             table.player_b_wants_rematch = false;
+
+            match table.stage {
+                Stage::EndedWinnerA => table.player_a_win_counter += 1,
+                Stage::EndedWinnerB => table.player_b_win_counter += 1,
+                Stage::EndedDraw => table.tie_counter += 1,
+                _ => {
+                    return Err(generic_err("The game isn't over yet, this is weird that you've even gotten so far in the function logic."));
+                }
+            };
 
             deps.storage
                 .set(b"table", &serde_json::to_vec(&table).unwrap());
@@ -566,7 +593,18 @@ impl Table {
                 self.player_b_hand = vec![deck[PLAYER_B_FIRST_CARD], deck[PLAYER_B_SECOND_CARD]];
                 return;
             }
-            _ => return,
+            Stage::WaitingForPlayersToJoin => {
+                return;
+            }
+            Stage::EndedWinnerA => {
+                return;
+            }
+            Stage::EndedWinnerB => {
+                return;
+            }
+            Stage::EndedDraw => {
+                return;
+            }
         }
 
         // Turn ended with both player out of cash, just play it out
