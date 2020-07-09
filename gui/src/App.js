@@ -387,30 +387,38 @@ class App extends React.Component {
                 You: {this.state.myWalletAddress} {this.state.myWalletBalance}
               </div>
             </div>
+            <div style={{ textAlign: "center" }}>
+              <Form.Input
+                placeholder="Room name"
+                value={this.state.new_room_name}
+                onChange={(_, { value }) =>
+                  this.setState({ new_room_name: value })
+                }
+              />
+              <Button
+                loading={this.state.createLoading}
+                disabled={this.state.createLoading}
+                onClick={this.createRoom.bind(this)}
+              >
+                Create!
+              </Button>
+            </div>
+            <br />
             <center>
-              <div>
-                <Form.Input
-                  placeholder="Room name"
-                  value={this.state.new_room_name}
-                  onChange={(_, { value }) =>
-                    this.setState({ new_room_name: value })
-                  }
-                />
-                <Button
-                  loading={this.state.createLoading}
-                  disabled={this.state.createLoading}
-                  onClick={this.createRoom.bind(this)}
-                >
-                  Create!
-                </Button>
-              </div>
-              <br />
-              <div>All rooms</div>
-              {this.state.all_rooms.map((r, i) => (
-                <div key={i}>
-                  {r.label}: <a href={"#" + r.address}>{r.address}</a>
-                </div>
-              ))}
+              <table>
+                <tr>
+                  <th>Name</th>
+                  <th>Address</th>
+                </tr>
+                {this.state.all_rooms.map((r, i) => (
+                  <tr key={i}>
+                    <td>{r.label}</td>
+                    <td>
+                      <a href={"#" + r.address}>{r.address}</a>
+                    </td>
+                  </tr>
+                ))}
+              </table>
             </center>
           </Table>
         </div>
@@ -503,168 +511,160 @@ class App extends React.Component {
           <div
             style={{ position: "absolute", width: "100%", textAlign: "center" }}
           >
-            <center>
-              <div>{room}</div>
-              <div>{stage}</div>
-              <div>{lastPlay}</div>
-              <div>{turn}</div>
-              <div>{turnDirection}</div>
-            </center>
+            <div>{room}</div>
+            <div>{stage}</div>
+            <div>{lastPlay}</div>
+            <div>{turn}</div>
+            <div>{turnDirection}</div>
 
             <br />
             {this.state.community_cards.map((c, i) =>
               stateCardToReactCard(c, true, i)
             )}
-            <center>
-              <div style={{ padding: 35 }}>
-                <span style={{ marginRight: 250 }}>
-                  A Total Bet: {nf.format(this.state.player_b_bet)}
-                </span>
-                <span>B Total Bet: {nf.format(this.state.player_a_bet)}</span>
-              </div>
-            </center>
+            <div style={{ padding: 35, textAlign: "center" }}>
+              <span style={{ marginRight: 250 }}>
+                A Total Bet: {nf.format(this.state.player_b_bet)}
+              </span>
+              <span>B Total Bet: {nf.format(this.state.player_a_bet)}</span>
+            </div>
           </div>
           {/* player a */}
-          <center>
-            <div
-              style={{
-                position: "absolute",
-                bottom: 0,
-                right: 0,
-                padding: 10,
-              }}
-            >
-              <div>
-                Player A
-                {this.state.player_a === this.state.myWalletAddress
-                  ? " (You)"
-                  : ""}
-              </div>
-              <div>Credits left: {nf.format(this.state.player_a_wallet)}</div>
-              <div>{this.state.player_a}</div>
+          <div
+            style={{
+              position: "absolute",
+              bottom: 0,
+              right: 0,
+              padding: 10,
+              textAlign: "center",
+            }}
+          >
+            <div>
+              Player A
+              {this.state.player_a === this.state.myWalletAddress
+                ? " (You)"
+                : ""}
             </div>
-          </center>
+            <div>Credits left: {nf.format(this.state.player_a_wallet)}</div>
+            <div>{this.state.player_a}</div>
+          </div>
           <Hand
             style={{ position: "absolute", right: "35vw" }}
             cards={this.state.player_a_hand.map((c) => stateCardToReactCard(c))}
           />
           {/* controls */}
-          <center>
-            <div
-              style={{
-                position: "fixed",
-                bottom: 0,
-                padding: 10,
-                width: "100%",
-                textAlign: "center",
-              }}
-              hidden={
-                !this.getMe() ||
+          <div
+            style={{
+              position: "fixed",
+              bottom: 0,
+              padding: 10,
+              width: "100%",
+              textAlign: "center",
+            }}
+            hidden={
+              !this.getMe() ||
+              this.state.stage.includes("Ended") ||
+              this.state.stage.includes("Waiting")
+            }
+          >
+            <Button
+              loading={this.state.checkLoading}
+              onClick={this.check.bind(this)}
+              disabled={
+                this.state.player_a_bet !== this.state.player_b_bet ||
+                !this.state.turn ||
+                this.state.turn !== this.state.myWalletAddress ||
                 this.state.stage.includes("Ended") ||
-                this.state.stage.includes("Waiting")
+                this.state.stage.includes("Waiting") ||
+                this.state.callLoading ||
+                this.state.raiseLoading ||
+                this.state.foldLoading ||
+                this.state.checkLoading
               }
             >
-              <Button
-                loading={this.state.checkLoading}
-                onClick={this.check.bind(this)}
-                disabled={
-                  this.state.player_a_bet !== this.state.player_b_bet ||
-                  !this.state.turn ||
-                  this.state.turn !== this.state.myWalletAddress ||
-                  this.state.stage.includes("Ended") ||
-                  this.state.stage.includes("Waiting") ||
-                  this.state.callLoading ||
-                  this.state.raiseLoading ||
-                  this.state.foldLoading ||
-                  this.state.checkLoading
-                }
-              >
-                Check
-              </Button>
-              <Button
-                loading={this.state.callLoading}
-                onClick={this.call.bind(this)}
-                disabled={
-                  this.state.player_a_bet === this.state.player_b_bet ||
-                  !this.state.turn ||
-                  this.state.turn !== this.state.myWalletAddress ||
-                  this.state.stage.includes("Ended") ||
-                  this.state.stage.includes("Waiting") ||
-                  this.state.callLoading ||
-                  this.state.raiseLoading ||
-                  this.state.foldLoading ||
-                  this.state.checkLoading
-                }
-              >
-                Call
-              </Button>
-              <Button
-                loading={this.state.raiseLoading}
-                onClick={this.raise.bind(this)}
-                disabled={
-                  !this.state.turn ||
-                  this.state.turn !== this.state.myWalletAddress ||
-                  this.state.stage.includes("Ended") ||
-                  this.state.stage.includes("Waiting") ||
-                  this.state.callLoading ||
-                  this.state.raiseLoading ||
-                  this.state.foldLoading ||
-                  this.state.checkLoading
-                }
-              >
-                Raise
-              </Button>
-              <Button
-                loading={this.state.foldLoading}
-                onClick={this.fold.bind(this)}
-                disabled={
-                  !this.state.turn ||
-                  this.state.turn !== this.state.myWalletAddress ||
-                  this.state.stage.includes("Ended") ||
-                  this.state.stage.includes("Waiting") ||
-                  this.state.callLoading ||
-                  this.state.raiseLoading ||
-                  this.state.foldLoading ||
-                  this.state.checkLoading
-                }
-              >
-                Fold
-              </Button>
-              <Slider
-                value={10000}
-                color="red"
-                settings={{
-                  start: 2,
-                  min: 0,
-                  max: 10,
-                  step: 1,
-                  onChange: (value) => {
-                    this.setState({ raiseAmount: value });
-                  },
-                }}
-              />
-            </div>
-          </center>
-          {/* player b */}
-          <center>
-            <div
-              style={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                padding: 10,
-              }}
+              Check
+            </Button>
+            <Button
+              loading={this.state.callLoading}
+              onClick={this.call.bind(this)}
+              disabled={
+                this.state.player_a_bet === this.state.player_b_bet ||
+                !this.state.turn ||
+                this.state.turn !== this.state.myWalletAddress ||
+                this.state.stage.includes("Ended") ||
+                this.state.stage.includes("Waiting") ||
+                this.state.callLoading ||
+                this.state.raiseLoading ||
+                this.state.foldLoading ||
+                this.state.checkLoading
+              }
             >
-              <div>
-                Player B{" "}
-                {this.state.player_b === this.state.myWalletAddress
-                  ? " (You)"
-                  : ""}
-              </div>
-              <div>Credits left: {nf.format(this.state.player_b_wallet)}</div>
-              <div>{this.state.player_b}</div>
+              Call
+            </Button>
+            <Button
+              loading={this.state.raiseLoading}
+              onClick={this.raise.bind(this)}
+              disabled={
+                !this.state.turn ||
+                this.state.turn !== this.state.myWalletAddress ||
+                this.state.stage.includes("Ended") ||
+                this.state.stage.includes("Waiting") ||
+                this.state.callLoading ||
+                this.state.raiseLoading ||
+                this.state.foldLoading ||
+                this.state.checkLoading
+              }
+            >
+              Raise
+            </Button>
+            <Button
+              loading={this.state.foldLoading}
+              onClick={this.fold.bind(this)}
+              disabled={
+                !this.state.turn ||
+                this.state.turn !== this.state.myWalletAddress ||
+                this.state.stage.includes("Ended") ||
+                this.state.stage.includes("Waiting") ||
+                this.state.callLoading ||
+                this.state.raiseLoading ||
+                this.state.foldLoading ||
+                this.state.checkLoading
+              }
+            >
+              Fold
+            </Button>
+            <Slider
+              value={10000}
+              color="red"
+              settings={{
+                start: 2,
+                min: 0,
+                max: 10,
+                step: 1,
+                onChange: (value) => {
+                  this.setState({ raiseAmount: value });
+                },
+              }}
+            />
+          </div>
+          {/* player b */}
+          <div
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              padding: 10,
+              textAlign: "center",
+            }}
+          >
+            <div>
+              Player B{" "}
+              {this.state.player_b === this.state.myWalletAddress
+                ? " (You)"
+                : ""}
             </div>
-          </center>
+            <div>Credits left: {nf.format(this.state.player_b_wallet)}</div>
+            <div>{this.state.player_b}</div>
+          </div>
 
           <Hand
             style={{ position: "absolute", left: "23vw" }}
@@ -677,9 +677,6 @@ class App extends React.Component {
 }
 
 function stateCardToReactCard(c, component = false, index) {
-  let suit = c.suit;
-  let value = c.value;
-
   if (!c.value || !c.suit) {
     if (component) {
       return <Card key={index} />;
@@ -688,27 +685,28 @@ function stateCardToReactCard(c, component = false, index) {
     }
   }
 
-  suit = suit[0];
-  let face;
-  if (value === "Two") {
-    face = "2";
-  } else if (value === "Three") {
-    face = "3";
-  } else if (value === "Four") {
-    face = "4";
-  } else if (value === "Five") {
-    face = "5";
-  } else if (value === "Six") {
-    face = "6";
-  } else if (value === "Seven") {
-    face = "7";
-  } else if (value === "Eight") {
-    face = "8";
-  } else if (value === "Nine") {
-    face = "9";
-  } else {
-    face = value[0];
-  }
+  let suit = {
+    Spade: "S",
+    Club: "C",
+    Heart: "H",
+    Diamond: "D",
+  }[c.suit];
+
+  let face = {
+    Two: "2",
+    Three: "3",
+    Four: "4",
+    Five: "5",
+    Six: "6",
+    Seven: "7",
+    Eight: "8",
+    Nine: "9",
+    Ten: "T",
+    Jack: "J",
+    Queen: "Q",
+    King: "K",
+    Ace: "A",
+  }[c.value];
 
   if (component) {
     return <Card key={index} face={face} suit={suit} />;
