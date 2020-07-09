@@ -3,11 +3,12 @@ import * as SecretJS from "secretjs";
 import * as bip39 from "bip39";
 import { Hand, Table, Card } from "react-casino";
 import { Button, Form } from "semantic-ui-react";
-
 import Slider from "rc-slider";
 
 import "rc-slider/assets/index.css";
 import "semantic-ui-css/semantic.min.css";
+
+const PokerSolver = require("pokersolver").Hand;
 
 const nf = new Intl.NumberFormat();
 const codeId = 12;
@@ -401,7 +402,7 @@ class App extends React.Component {
     if (window.location.hash === "") {
       return (
         <div style={{ color: "white" }}>
-          <Table>
+          <Table style={{ overflow: "visible" }}>
             {/* wallet */}
             <div
               style={{
@@ -433,19 +434,23 @@ class App extends React.Component {
             </div>
             <br />
             <center>
-              <table>
-                <tr>
-                  <th>Name</th>
-                  <th>Address</th>
-                </tr>
-                {this.state.all_rooms.map((r, i) => (
-                  <tr key={i}>
-                    <td>{r.label}</td>
-                    <td>
-                      <a href={"#" + r.address}>{r.address}</a>
-                    </td>
+              <table id="room-list">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Address</th>
                   </tr>
-                ))}
+                </thead>
+                <tbody>
+                  {this.state.all_rooms.map((r, i) => (
+                    <tr key={i}>
+                      <td>{r.label}</td>
+                      <td>
+                        <a href={"#" + r.address}>{r.address}</a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
               </table>
             </center>
           </Table>
@@ -509,6 +514,28 @@ class App extends React.Component {
     let room = "";
     if (this.state.game_address) {
       room = "Room: " + this.state.game_address;
+    }
+
+    const handA = this.state.player_a_hand
+      .concat(this.state.community_cards)
+      .map(stateCardToPokerSoverCard)
+      .filter((x) => x);
+    let rankHandA = "Unknown";
+    if (handA.length >= 5) {
+      try {
+        rankHandA = PokerSolver.solve(handA).descr;
+      } catch (e) {}
+    }
+
+    const handB = this.state.player_b_hand
+      .concat(this.state.community_cards)
+      .map(stateCardToPokerSoverCard)
+      .filter((x) => x);
+    let rankHandB = "Unknown";
+    if (handB.length >= 5) {
+      try {
+        rankHandB = PokerSolver.solve(handB).descr;
+      } catch (e) {}
     }
 
     return (
@@ -584,6 +611,7 @@ class App extends React.Component {
                 ? " (You)"
                 : ""}
             </div>
+            <div>Hand: {rankHandA}</div>
             <div>Credits left: {nf.format(this.state.player_a_wallet)}</div>
             <div>{this.state.player_a}</div>
           </div>
@@ -707,6 +735,7 @@ class App extends React.Component {
                 ? " (You)"
                 : ""}
             </div>
+            <div>Hand: {rankHandB}</div>
             <div>Credits left: {nf.format(this.state.player_b_wallet)}</div>
             <div>{this.state.player_b}</div>
           </div>
@@ -758,6 +787,37 @@ function stateCardToReactCard(c, component = false, index) {
   } else {
     return { face, suit };
   }
+}
+
+function stateCardToPokerSoverCard(c) {
+  if (!c.value || !c.suit) {
+    return null;
+  }
+
+  let type = {
+    Spade: "s",
+    Club: "c",
+    Heart: "h",
+    Diamond: "d",
+  }[c.suit];
+
+  let rank = {
+    Two: "2",
+    Three: "3",
+    Four: "4",
+    Five: "5",
+    Six: "6",
+    Seven: "7",
+    Eight: "8",
+    Nine: "9",
+    Ten: "T",
+    Jack: "J",
+    Queen: "Q",
+    King: "K",
+    Ace: "A",
+  }[c.value];
+
+  return rank + type;
 }
 
 export default App;
