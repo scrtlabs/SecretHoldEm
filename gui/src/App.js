@@ -540,11 +540,18 @@ class App extends React.Component {
       turnDirection = "";
       lastPlay = "";
     }
-    if (
-      typeof this.state.last_play === "string" &&
-      this.state.last_play.includes("fold")
-    ) {
-      lastPlay = this.state.last_play;
+    if (typeof this.state.last_play === "string") {
+      if (this.state.last_play.includes("fold")) {
+        lastPlay = this.state.last_play;
+      } else if (this.state.last_play.includes("raised")) {
+        try {
+          const amount = +this.state.last_play.match(/\d+/g)[0];
+          lastPlay = this.state.last_play.replace(
+            `${amount}`,
+            nf.format(amount)
+          );
+        } catch (e) {}
+      }
     }
 
     let room = "";
