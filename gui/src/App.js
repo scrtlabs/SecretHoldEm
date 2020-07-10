@@ -542,7 +542,8 @@ class App extends React.Component {
     let rankHandA = "Unknown";
     if (handA.length >= 5) {
       try {
-        rankHandA = PokerSolver.solve(handA).descr;
+        const solve = PokerSolver.solve(handA);
+        rankHandA = solve.descr;
       } catch (e) {}
     }
 
@@ -553,7 +554,8 @@ class App extends React.Component {
     let rankHandB = "Unknown";
     if (handB.length >= 5) {
       try {
-        rankHandB = PokerSolver.solve(handB).descr;
+        const solve = PokerSolver.solve(handB);
+        rankHandB = solve.descr;
       } catch (e) {}
     }
 
@@ -568,10 +570,16 @@ class App extends React.Component {
 
           {typeof this.state.last_play === "string" &&
           !this.state.last_play.includes("fold") ? (
-            <div>
-              <b>{winner === "A" ? rankHandA : rankHandB}</b> vs a lousy{" "}
-              <b>{winner === "A" ? rankHandB : rankHandA}</b>
-            </div>
+            rankHandA !== rankHandB ? (
+              <div>
+                <b>{winner === "A" ? rankHandA : rankHandB}</b> vs a lousy{" "}
+                <b>{winner === "A" ? rankHandB : rankHandA}</b>
+              </div>
+            ) : (
+              <div>
+                <b>Won with a kicker!</b>
+              </div>
+            )
           ) : null}
         </span>
       );
