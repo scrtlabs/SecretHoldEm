@@ -737,10 +737,10 @@ class App extends React.Component {
               )}
               <div style={{ padding: 35, textAlign: "center" }}>
                 <span style={{ marginRight: 125 }}>
-                  B Total Bet: {nf.format(this.state.player_b_bet)}
+                  B's Total Bet: {nf.format(this.state.player_b_bet)}
                 </span>
                 <span style={{ marginLeft: 125 }}>
-                  A Total Bet: {nf.format(this.state.player_a_bet)}
+                  A's Total Bet: {nf.format(this.state.player_a_bet)}
                 </span>
               </div>
               <div
