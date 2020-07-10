@@ -577,7 +577,7 @@ class App extends React.Component {
               </div>
             ) : (
               <div>
-                <b>Won with a kicker!</b>
+                Both with <b>{rankHandA}</b>, {winner} won with a kicker!
               </div>
             )
           ) : null}
