@@ -581,11 +581,12 @@ class App extends React.Component {
           <div>Waiting for players</div>
           <Button
             loading={this.state.joinLoading}
-            hidden
             disabled={
               this.state.joinLoading ||
+              this.getMe() ||
               (this.state.myWalletBalance &&
-                typeof this.state.myWalletBalance !== "string")
+                typeof this.state.myWalletBalance === "string" &&
+                !this.state.myWalletBalance.includes("SCRT"))
             }
             onClick={this.joinRoom.bind(this)}
           >
