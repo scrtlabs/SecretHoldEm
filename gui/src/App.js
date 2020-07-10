@@ -250,7 +250,9 @@ class App extends React.Component {
         }
 
         this.setState({
-          community_cards: data.community_cards,
+          community_cards: data.community_cards
+            .concat([{}, {}, {}, {}, {}])
+            .slice(0, 5),
           player_a: data.player_a,
           player_a_bet: data.player_a_bet,
           player_a_wallet: data.player_a_wallet,
