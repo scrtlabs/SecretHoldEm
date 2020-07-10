@@ -307,6 +307,7 @@ class App extends React.Component {
       const seed = SecretJS.EnigmaUtils.GenerateNewSeed();
       secret = Buffer.from(seed.slice(0, 8)).readUInt32BE(0); // 64 bit
     }
+    localStorage.setItem(this.state.game_address, secret);
 
     try {
       await this.state.secretJsClient.execute(this.state.game_address, {
@@ -315,8 +316,6 @@ class App extends React.Component {
     } catch (e) {
       console.log("join", e);
     }
-
-    localStorage.setItem(this.state.game_address, secret);
 
     setTimeout(
       () => this.setState({ joinLoading: false }),
