@@ -586,24 +586,18 @@ class App extends React.Component {
     } else if (stage.includes("EndedDraw")) {
       stage = `It's a Tie of ${rankHandA}!`;
     } else if (stage === "WaitingForPlayersToJoin") {
+      const isLoading =
+        this.state.joinLoading ||
+        this.getMe() ||
+        (this.state.myWalletBalance &&
+          typeof this.state.myWalletBalance === "string" &&
+          !this.state.myWalletBalance.includes("SCRT"));
       stage = (
         <span>
           <div>Waiting for players</div>
           <Button
-            loading={
-              this.state.joinLoading ||
-              this.getMe() ||
-              (this.state.myWalletBalance &&
-                typeof this.state.myWalletBalance === "string" &&
-                !this.state.myWalletBalance.includes("SCRT"))
-            }
-            disabled={
-              this.state.joinLoading ||
-              this.getMe() ||
-              (this.state.myWalletBalance &&
-                typeof this.state.myWalletBalance === "string" &&
-                !this.state.myWalletBalance.includes("SCRT"))
-            }
+            loading={isLoading}
+            disabled={isLoading}
             onClick={this.joinRoom.bind(this)}
           >
             Join
