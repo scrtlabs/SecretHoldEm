@@ -697,7 +697,7 @@ class App extends React.Component {
             style={{
               position: "absolute",
               top: 0,
-              right: 0,
+              right: 15,
               padding: 10,
             }}
           >
