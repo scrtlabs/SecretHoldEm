@@ -1,3 +1,8 @@
+.table-background::after {
+  content: "♠" !important;
+  font-size: 35vw !important;
+}
+
 div.table-background {
   position: unset !important;
   width: unset !important;
