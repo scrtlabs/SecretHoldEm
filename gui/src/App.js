@@ -572,7 +572,7 @@ class App extends React.Component {
           !this.state.last_play.includes("fold") ? (
             rankHandA !== rankHandB ? (
               <div>
-                <b>{winner === "A" ? rankHandA : rankHandB}</b> vs a lousy{" "}
+                <b>{winner === "A" ? rankHandA : rankHandB}</b> vs. a lousy{" "}
                 <b>{winner === "A" ? rankHandB : rankHandA}</b>
               </div>
             ) : (
