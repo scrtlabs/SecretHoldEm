@@ -186,13 +186,13 @@ class App extends React.Component {
           this.setState({
             myWalletBalance: (
               <span>
-                (No funds - Go get some at{" "}
+                (No funds - Go get some{" "}
                 <a
                   href="https://faucet.int.testnet.enigma.co"
                   rel="noopener noreferrer"
                   target="_blank"
                 >
-                  https://faucet.testnet.enigma.co
+                  from the faucet
                 </a>
                 )
               </span>
