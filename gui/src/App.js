@@ -12,7 +12,7 @@ import "./App.css";
 const PokerSolver = require("pokersolver").Hand;
 
 const nf = new Intl.NumberFormat();
-const codeId = 23;
+const codeId = 1;
 const refreshTableStateInterval = 1000;
 
 const emptyState = {
@@ -85,7 +85,7 @@ class App extends React.Component {
       "secret"
     );
     const secretJsClient = new SecretJS.SigningCosmWasmClient(
-      "https://bootstrap.int.testnet.enigma.co",
+      "https://bootstrap.pub.testnet.enigma.co",
       myWalletAddress,
       (signBytes) => signingPen.sign(signBytes),
       tx_encryption_seed,
@@ -188,7 +188,7 @@ class App extends React.Component {
               <span>
                 (No funds - Go get some{" "}
                 <a
-                  href="https://faucet.int.testnet.enigma.co"
+                  href="https://faucet.pub.testnet.enigma.co"
                   rel="noopener noreferrer"
                   target="_blank"
                 >
