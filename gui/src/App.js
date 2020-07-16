@@ -692,7 +692,7 @@ class App extends React.Component {
               You: {this.state.myWalletAddress} {this.state.myWalletBalance}
             </div>
           </div>
-          {/* return to loby */}
+          {/* return to lobby */}
           <div
             style={{
               position: "absolute",
@@ -708,7 +708,7 @@ class App extends React.Component {
               }}
               href="/#"
             >
-              Return to loby
+              Return to lobby
             </a>
           </div>
           {/* community cards */}
