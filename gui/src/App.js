@@ -540,7 +540,7 @@ class App extends React.Component {
       .map(stateCardToPokerSoverCard)
       .filter((x) => x);
     let rankHandA = "Unknown";
-    if (handA.length >= 5) {
+    if (handA.length > 5 || (this.getMe() && this.getMe().player == "A")) {
       try {
         const solve = PokerSolver.solve(handA);
         rankHandA = solve.descr;
@@ -552,7 +552,7 @@ class App extends React.Component {
       .map(stateCardToPokerSoverCard)
       .filter((x) => x);
     let rankHandB = "Unknown";
-    if (handB.length >= 5) {
+    if (handB.length > 5 || (this.getMe() && this.getMe().player == "B")) {
       try {
         const solve = PokerSolver.solve(handB);
         rankHandB = solve.descr;
