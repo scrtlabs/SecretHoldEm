@@ -674,7 +674,7 @@ class App extends React.Component {
     return (
       <div style={{ color: "white" }}>
         <Table>
-          {/* wallet */}
+          {/* wallet + scoreboard */}
           <div
             style={{
               position: "absolute",
@@ -690,6 +690,32 @@ class App extends React.Component {
               }}
             >
               You: {this.state.myWalletAddress} {this.state.myWalletBalance}
+            </div>
+
+            <div
+              style={{
+                marginTop: 30,
+                position: "relative",
+                zIndex: 9999,
+              }}
+            >
+              <table>
+                <center>Wins:</center>
+                <tbody>
+                  <tr>
+                    <th>Player A</th>
+                    <td>{this.state.player_a_win_counter}</td>
+                  </tr>
+                  <tr>
+                    <th>Player B</th>
+                    <td>{this.state.player_b_win_counter}</td>
+                  </tr>
+                  <tr>
+                    <th>Ties</th>
+                    <td>{this.state.tie_counter}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
           {/* return to lobby */}
