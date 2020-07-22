@@ -12,7 +12,7 @@ import "./App.css";
 const PokerSolver = require("pokersolver").Hand;
 
 const nf = new Intl.NumberFormat();
-const codeId = 1;
+const codeId = 3;
 const refreshTableStateInterval = 1000;
 
 const emptyState = {
