@@ -588,16 +588,20 @@ class App extends React.Component {
     } else if (stage === "WaitingForPlayersToJoin") {
       const isLoading =
         this.state.joinLoading ||
-        this.getMe() ||
-        (this.state.myWalletBalance &&
+        !!this.getMe() ||
+        !!(
+          this.state.myWalletBalance &&
           typeof this.state.myWalletBalance === "string" &&
-          !this.state.myWalletBalance.includes("SCRT"));
+          !this.state.myWalletBalance.includes("SCRT")
+        );
       stage = (
         <span>
           <div>Waiting for players</div>
           <Button
             loading={isLoading}
-            disabled={isLoading}
+            disabled={
+              isLoading || typeof this.state.myWalletBalance !== "string"
+            }
             onClick={this.joinRoom.bind(this)}
           >
             Join
@@ -700,7 +704,13 @@ class App extends React.Component {
               }}
             >
               <table>
-                <center>Wins:</center>
+                <thead>
+                  <tr>
+                    <td>
+                      <center>Wins:</center>
+                    </td>
+                  </tr>
+                </thead>
                 <tbody>
                   <tr>
                     <th>Player A</th>
