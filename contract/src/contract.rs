@@ -392,9 +392,11 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
             if me == table.player_a {
                 table.stage = Stage::EndedWinnerB;
+                table.player_b_win_counter += 1;
                 table.last_play = Some(String::from("Player A folded"));
             } else {
                 table.stage = Stage::EndedWinnerA;
+                table.player_a_win_counter += 1;
                 table.last_play = Some(String::from("Player B folded"));
             }
 
@@ -487,14 +489,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             }
 
             table.game_counter += 1;
-            match table.stage {
-                Stage::EndedWinnerA => table.player_a_win_counter += 1,
-                Stage::EndedWinnerB => table.player_b_win_counter += 1,
-                Stage::EndedDraw => table.tie_counter += 1,
-                _ => {
-                    return Err(generic_err("The game isn't over yet, this is weird that you've even gotten so far in the function logic."));
-                }
-            };
 
             let player_a_secret = deps.storage.get(b"player_a_secret").unwrap();
             let player_b_secret = deps.storage.get(b"player_b_secret").unwrap();
@@ -582,10 +576,13 @@ impl Table {
 
                 if player_a_rank > player_b_rank {
                     self.stage = Stage::EndedWinnerA;
+                    self.player_a_win_counter += 1;
                 } else if player_a_rank < player_b_rank {
                     self.stage = Stage::EndedWinnerB;
+                    self.player_b_win_counter += 1;
                 } else {
                     self.stage = Stage::EndedDraw;
+                    self.tie_counter += 1;
                 }
 
                 self.player_a_hand = vec![deck[PLAYER_A_FIRST_CARD], deck[PLAYER_A_SECOND_CARD]];
