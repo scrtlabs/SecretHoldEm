@@ -342,7 +342,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 table.last_play = Some(String::from("Player A called"));
             } else {
                 // I'm player B
-                table.player_b_wallet = table.player_a_bet - table.player_b_bet;
+                table.player_b_wallet -= table.player_a_bet - table.player_b_bet;
                 if table.player_b_wallet < 0 {
                     return Err(generic_err(
                         "You cannot Call, your bet is bigger or equals to the other player's bet.",
