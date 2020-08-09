@@ -1,8 +1,5 @@
 // use bincode;
-use cosmwasm_std::{
-    generic_err, Api, Binary, CanonicalAddr, Env, Extern, HandleResponse, HandleResult, HumanAddr,
-    InitResponse, InitResult, MigrateResponse, Querier, QueryResult, StdResult, Storage,
-};
+use cosmwasm_std::{CosmosMsg, Coin, generic_err, Api, Binary, CanonicalAddr, Env, Extern, HandleResponse, HandleResult, HumanAddr, InitResponse, InitResult, MigrateResponse, Querier, QueryResult, StdResult, Storage, Uint128, BankMsg};
 use rand::{seq::SliceRandom, SeedableRng};
 use rand_chacha::ChaChaRng;
 use rs_poker::core::{Card, Deck, Rankable};
@@ -134,7 +131,24 @@ pub enum HandleMsg {
     Fold {},
     Check {},
     Rematch {},
+    Withdraw {},
 }
+
+pub fn winner_winner_chicken_dinner(contract_address: HumanAddr, player: HumanAddr) -> HandleResponse {
+    HandleResponse{
+        messages: vec![CosmosMsg::Bank(BankMsg::Send {
+            from_address: contract_address,
+            to_address: player,
+            amount: vec![Coin{
+                denom: "uscrt".to_string(),
+                amount: Uint128(200_000_000),
+            }]}),
+        ],
+        log: vec![],
+        data: None
+    }
+}
+
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -142,7 +156,39 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> HandleResult {
     match msg {
+        HandleMsg::Withdraw {} => {
+
+            let player_name = deps.api.human_address(&env.message.sender)?;
+            let contract_address = deps.api.human_address(&env.contract.address)?;
+
+            let mut table: Table =
+                serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
+
+            if table.player_a_wallet == 0 && player_name == table.player_b.unwrap() {
+                Ok(winner_winner_chicken_dinner(contract_address, player_name))
+            } else if table.player_b_wallet == 0 && player_name == table.player_a.unwrap() {
+                Ok(winner_winner_chicken_dinner(contract_address, player_name))
+            }
+
+            return Err(generic_err("PLAY MORE"));
+        },
         HandleMsg::Join { secret } => {
+
+            let min_deposit: Coin = Coin{
+                denom: "uscrt".to_string(),
+                amount: Uint128(100_000_000),
+            };
+
+            if env.message.sent_funds.len() == 0 {
+                return Err(generic_err("SHOW ME THE MONEY"));
+            } else {
+                let deposit = env.message.sent_funds[0].clone();
+
+                if deposit.ne(&min_deposit) {
+                    return Err(generic_err("WRONG MONEY"));
+                }
+            }
+
             let player_a = deps.storage.get(b"player_a");
             let player_b = deps.storage.get(b"player_b");
 
