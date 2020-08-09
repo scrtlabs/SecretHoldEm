@@ -7,18 +7,11 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json_wasm as serde_json;
 use sha2::{Digest, Sha256};
+use core::cmp::max;
 
 #[derive(Serialize, Deserialize, Clone)]
 struct Table {
     game_counter: u64,
-
-    player_a: Option<HumanAddr>,
-    player_a_wallet: i128,
-    player_a_bet: i64,
-
-    player_b: Option<HumanAddr>,
-    player_b_wallet: i128,
-    player_b_bet: i64,
 
     starter: Option<HumanAddr>,
     turn: Option<HumanAddr>, // round ends if after a bet: starter != turn && player_a_bet == player_b_bet or if someone called
@@ -28,26 +21,385 @@ struct Table {
 
     community_cards: Vec<Card>,
 
-    player_a_hand: Vec<Card>,
-    player_b_hand: Vec<Card>,
+    button: u8,
+    to_act: u8,
 
-    player_a_wants_rematch: bool,
-    player_b_wants_rematch: bool,
+    pot: i128,
+    bet: u64,
 
-    player_a_win_counter: u64,
-    player_b_win_counter: u64,
-    tie_counter: u64,
+    winners: Vec<u8>,
+
+    players: [Option<Player>; 9],
+
+    secrets: Vec<u8>,
+
+    max_raise_amt: i128,
+
     max_credit: u64,
     min_credit: u64,
     big_blind: u64,
 }
 
-// struct Player {
-//     address: Option<HumanAddr>,
-//     position: u8,
-//     wallet: u128,
-//     current_bet: i64
-// }
+impl Table {
+
+    fn betting_round_over(&self) -> bool {
+        return self.to_act == 255
+    }
+
+    // fn check_all_in(&self) -> (bool, u8) {
+    //     let mut count = 0;
+    //     let mut last_seen: u8 = 0;
+    //     for player in self.players.iter() {
+    //         if let Some(p) = player {
+    //             if p.in_play {
+    //                 count += 1;
+    //                 last_seen = p.seat;
+    //             }
+    //         }
+    //     }
+    //     (count == 1, last_seen)
+    // }
+
+    fn check_all_folded(&self) -> (bool, u8) {
+        let mut count = 0;
+        let mut last_seen: u8 = 0;
+        for player in self.players.iter() {
+            if let Some(p) = player {
+                if p.in_play {
+                    count += 1;
+                    last_seen = p.seat;
+                }
+            }
+        }
+        (count == 1, last_seen)
+    }
+
+    fn next_active_player(&self, starting_pos: u8) -> u8 {
+        let mut pos: u8 = starting_pos;
+
+        loop {
+            pos = self.next_player(pos);
+            if pos == starting_pos {
+                // no active players found
+                return 255
+            }
+
+            let player: &Player = self.players.get(pos).unwrap();
+            if player.in_play && player.current_bet != self.bet {
+                return pos
+            }
+        }
+    }
+
+    fn fold(&mut self) {
+        let player: &mut Player = self.players.get_mut(self.to_act).unwrap();
+
+        player.in_play = false;
+
+        self.to_act = self.next_active_player(self.to_act);
+    }
+
+    fn call(&mut self) {
+        let player: &mut Player = self.players.get_mut(self.to_act).unwrap();
+
+        player.bet(self.bet as i64);
+
+        self.to_act = self.next_active_player(self.to_act);
+    }
+
+    fn raise(&mut self, amount: u64) {
+        let player: &mut Player = self.players.get_mut(self.to_act).unwrap();
+
+        player.bet(amount as i64);
+        self.bet += amount;
+
+        self.to_act = self.next_active_player(self.to_act);
+    }
+
+    fn is_it_my_turn(&self, me: &HumanAddr) -> bool {
+        let player: &Player = self.players.get(self.to_act).unwrap();
+        return &player.address == me;
+    }
+
+    fn get_player_by_secret(&self, secret: u64) -> StdResult<Player> {
+        for player in self.players.iter() {
+            if let Some(p) = player {
+                if p.secret == secret.to_be_bytes().to_vec() {
+                    return Ok(p.clone());
+                }
+            }
+        }
+        return Err(generic_err("You aren't in this game bro"))
+    }
+    fn filter_private_data(&mut self) {
+        match self.stage {
+            Stage::PreFlop => {
+                self.community_cards = vec![];
+            },
+            Stage::Flop => {
+                self.community_cards.pop();
+                self.community_cards.pop();
+            }
+            Stage::Turn => {
+                self.community_cards.pop();
+            }
+            _ => {},
+        }
+
+        for player in self.players.iter_mut() {
+            if let Some(p) = player {
+                p.hand = vec![];
+                p.secret = vec![];
+            }
+        }
+
+    }
+
+    fn deal_hands(&mut self) -> () {
+        let seed: [u8; 32] = Sha256::digest(&self.secrets).into();
+
+        let deck = MyDeck::new_shuffled(seed);
+
+        let mut iter = deck.0.iter();
+
+        for player in self.players.iter_mut() {
+            if let Some(p) = player {
+                p.hand.push(iter.next().unwrap().clone());
+                p.hand.push(iter.next().unwrap().clone());
+            }
+        }
+
+        self.community_cards.push(iter.next().unwrap().clone());
+        self.community_cards.push(iter.next().unwrap().clone());
+        self.community_cards.push(iter.next().unwrap().clone());
+        self.community_cards.push(iter.next().unwrap().clone());
+        self.community_cards.push(iter.next().unwrap().clone());
+
+    }
+
+    fn start_round(&mut self) {
+        self.next_round();
+    }
+
+    fn sit_down(&mut self, seat: u8, p: Player) {
+        self.players[seat] = Some(p);
+    }
+
+    fn num_of_players(&self) -> u8 {
+        let mut count = 0;
+        for player in self.players.iter() {
+            if let Some(p) = player {
+                count += 1;
+            }
+        }
+
+        count
+    }
+
+    fn is_seat_taken(&self, seat: u8) -> bool {
+        return self.players.get(seat).is_some();
+    }
+
+    fn goto_next_stage<S: Storage, A: Api, Q: Querier>(&mut self, deps: &mut Extern<S, A, Q>) {
+
+        let (all_folded, winner) = self.check_all_folded();
+        if all_folded {
+            self.winners.push(winner);
+            self.distribute_pot();
+            Stage::EndedDraw;
+            return;
+        }
+
+        match self.stage {
+            Stage::PreFlop => {
+                self.stage = Stage::Flop;
+            }
+            Stage::Flop => {
+                self.stage = Stage::Turn;
+            }
+            Stage::Turn => {
+                self.stage = Stage::River;
+            }
+            Stage::River => {
+                self.showdown()
+            }
+            _ => {
+                return;
+            }
+        }
+
+        // Turn ended with both player out of cash, just play it out
+        if self.player_a_wallet == 0 || self.player_b_wallet == 0 {
+            while self.stage != Stage::EndedDraw
+                && self.stage != Stage::EndedWinnerA
+                && self.stage != Stage::EndedWinnerB
+            {
+                self.goto_next_stage(deps);
+            }
+            return;
+        }
+    }
+
+    fn next_player(&self, starting_pos: u8) -> u8 {
+
+        let mut iter = self.players.iter().cycle();
+        iter.skip(starting_pos as usize);
+
+        for pos in 0..9 {
+            if let Some(Some(_)) = iter.next() {
+                return (starting_pos + pos) % 9;
+            }
+        }
+        return 0;
+    }
+
+    fn next_round(&mut self) {
+        self.game_counter += 1;
+        self.button += self.next_player(self.button);
+        self.stage = Stage::PreFlop;
+        self.pot = 0;
+        self.bet = self.big_blind;
+
+        let (sb, bb) = self.blinds();
+
+        for player in self.players.iter_mut() {
+            if let Some(p) = player {
+                p.current_bet = 0;
+                p.in_play = true;
+
+                if p.seat == sb {
+                    p.bet((self.big_blind / 2) as i64);
+                } else if p.seat == bb {
+                    p.bet(self.big_blind as i64);
+                }
+                self.max_raise_amt = max(self.max_raise_amt, p.wallet)
+            }
+
+        }
+
+        self.to_act = self.next_player(bb);
+    }
+
+    fn blinds(&self) -> (u8, u8) {
+        return if self.players.len() == 2 {
+            (self.button, self.next_player(self.button))
+        } else {
+            (self.next_player(self.button), self.next_player(self.next_player(self.button)))
+        }
+    }
+
+    fn showdown(&mut self) {
+
+        let mut winning_hand = self.community_cards.clone().rank();
+        self.winners = vec![];
+        for player in self.players.iter_mut() {
+
+            let mut player_hand = self.community_cards.clone();
+            if let Some(p) = player {
+                if p.in_play {
+                    player_hand.extend(&p.hand);
+
+                    if winning_hand < player_hand.rank() {
+                        winning_hand = player_hand.rank();
+                        winners.push(p.seat);
+                    } else if winning_hand = player_hand.rank() {
+                        winners.push(p.seat);
+                    }
+                }
+            }
+        }
+
+        self.stage = Stage::EndedDraw
+
+    }
+
+    fn distribute_pot(&mut self) {
+        let num_of_winners = self.winners.len();
+        if num_of_winners == 0 {
+            return;
+        }
+
+        for seat in self.winners.iter() {
+            if let Some(Some(mut x)) = self.players.get(seat) {
+                x.wallet += self.pot / num_of_winners;
+            }
+        }
+    }
+}
+
+impl Default for Table {
+    fn default() -> Self {
+        return Self {
+            game_counter: 0,
+
+            stage: Stage::WaitingForPlayersToJoin,
+            starter: None,
+            turn: None,
+            last_play: None,
+
+            community_cards: vec![],
+
+            button: 0,
+            to_act: 0,
+            pot: 0,
+            bet: 0,
+            winners: vec![],
+            players: [None, None, None, None, None, None, None, None, None],
+            secrets: vec![],
+            max_raise_amt: 0,
+            max_credit: 0,
+            min_credit: 0,
+            big_blind: 0
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct Player {
+    address: HumanAddr,
+    seat: u8,
+    wallet: i128,
+    current_bet: i64,
+    in_play: bool,
+    hand: Vec<Card>,
+    secret: Vec<u8>
+}
+
+impl Player {
+    fn bet(&mut self, amount: i64) -> i64 {
+        self.current_bet += amount;
+        self.wallet -= amount;
+
+        return amount;
+    }
+}
+
+impl Default for Player {
+    fn default() -> Self {
+        Self {
+            address: HumanAddr::default(),
+            seat: 0,
+            wallet: 0,
+            in_play: false,
+            current_bet: 0,
+            hand: vec![],
+            secret: vec![]
+        }
+    }
+}
+
+struct MyDeck(pub Vec<Card>);
+
+impl MyDeck {
+    fn new_shuffled(seed: [u8; 32]) -> Self {
+        let mut rng = ChaChaRng::from_seed(seed);
+        let mut deck: Vec<Card> = Deck::default().into_iter().collect();
+        deck.shuffle(&mut rng);
+
+        Self(deck)
+    }
+}
+
 
 /////////////////////////////// Init ///////////////////////////////
 //
@@ -64,38 +416,11 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     _env: Env,
     msg: InitMsg,
 ) -> InitResult {
-    let table = Table {
-        game_counter: 0,
+    let mut table = Table::default();
 
-        player_a: None,
-        player_b: None,
-
-        player_a_wallet: 0,
-        player_b_wallet: 0,
-
-        player_a_bet: 0,
-        player_b_bet: 0,
-
-        stage: Stage::WaitingForPlayersToJoin,
-        starter: None,
-        turn: None,
-        last_play: None,
-
-        community_cards: vec![],
-
-        player_a_hand: vec![],
-        player_b_hand: vec![],
-
-        player_a_wants_rematch: false,
-        player_b_wants_rematch: false,
-
-        player_a_win_counter: 0,
-        player_b_win_counter: 0,
-        tie_counter: 0,
-        max_credit: msg.big_blind * (MAX_TABLE_BIG_BLINDS as u64),
-        min_credit: msg.big_blind * (MIN_TABLE_BIG_BLINDS as u64),
-        big_blind: msg.big_blind
-    };
+    table.max_credit = msg.big_blind * (MAX_TABLE_BIG_BLINDS as u64);
+    table.min_credit = msg.big_blind * (MIN_TABLE_BIG_BLINDS as u64);
+    table.big_blind = msg.big_blind;
 
     deps.storage
         .set(b"table", &serde_json::to_vec(&table).unwrap());
@@ -158,7 +483,7 @@ const RIVER_CARD: usize = 11;
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
-    Join { secret: u64 },
+    Join { secret: u64, seat: u8 },
     Raise { amount: u64 },
     Call {},
     Fold {},
@@ -269,10 +594,15 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
             Err(generic_err("You are not a player, or you are broke! Either way, go away!"))
         },
-        HandleMsg::Join { secret } => {
+        HandleMsg::Join { secret, seat } => {
 
             let mut table: Table =
                 serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
+
+            if table.is_seat_taken(seat) {
+                return Err(generic_err("Seat is taken :("));
+            }
+
 
             let deposit = can_deposit(&env, &table, 0)?;
 
@@ -283,70 +613,23 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 return Err(generic_err("Table is full."));
             }
 
-            let player_name = env.message.sender.as_slice();
-            let player_secret = &secret.to_be_bytes();
+            let player_name = deps.api.human_address(&env.message.sender)?;
 
-            if player_a.is_none() {
-                // player a - just store
-                deps.storage.set(b"player_a", player_name);
-                deps.storage.set(b"player_a_secret", player_secret);
+            let new_player = Player {
+                address: player_name,
+                seat,
+                wallet: deposit,
+                current_bet: 0,
+                in_play: false,
+                hand: vec![],
+                secret: secret.to_be_bytes().to_vec()
+            };
 
-                let a_human_addr = deps
-                    .api
-                    .human_address(&CanonicalAddr(Binary(player_name.to_vec())))
-                    .unwrap();
-
-
-                table.player_a = Some(a_human_addr.clone());
-                table.player_a_wallet = deposit;
-                table.starter = Some(a_human_addr.clone());
-                table.turn = Some(a_human_addr.clone());
-                deps.storage
-                    .set(b"table", &serde_json::to_vec(&table).unwrap());
-
-                return Ok(HandleResponse::default());
-            }
-
-            // player b - we can now shuffle the deck
-
-            deps.storage.set(b"player_b", player_name);
-            deps.storage.set(b"player_b_secret", player_secret);
-
-            let player_a_secret = deps.storage.get(b"player_a_secret").unwrap();
-
-            let mut combined_secret = player_a_secret.clone();
-            combined_secret.extend(player_secret);
-            combined_secret.extend(&(0 as u64).to_be_bytes()); // game counter
-            let seed: [u8; 32] = Sha256::digest(&combined_secret).into();
-
-            let mut rng = ChaChaRng::from_seed(seed);
-            let mut deck: Vec<Card> = Deck::default().into_iter().collect();
-            deck.shuffle(&mut rng);
-
-            deps.storage
-                .set(b"deck", &serde_json::to_vec(&deck).unwrap());
-
-            let a_human_addr = deps
-                .api
-                .human_address(&CanonicalAddr(Binary(player_a.expect("Error"))))
-                .unwrap();
-            let b_human_addr = deps
-                .api
-                .human_address(&CanonicalAddr(Binary(player_name.to_vec())))
-                .unwrap();
-
-            table.player_b = Some(b_human_addr);
-            table.player_b_wallet = deposit;
-
-            table.stage = table.stage.next_round();
-            table.starter = Some(a_human_addr.clone());
-            table.turn = Some(a_human_addr.clone());
-
-            deps.storage
-                .set(b"table", &serde_json::to_vec(&table).unwrap());
+            table.sit_down(seat, new_player);
 
             Ok(HandleResponse::default())
         }
+
         HandleMsg::Raise { amount } => {
             let mut table: Table =
                 serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
@@ -354,57 +637,13 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 return Err(generic_err("Action hasn't started yet"));
             }
 
-            let me = Some(deps.api.human_address(&env.message.sender).unwrap());
+            let me = deps.api.human_address(&env.message.sender)?;
 
-            if me != table.player_a && me != table.player_b {
-                return Err(generic_err("You are not a player, go away!"));
+            if !table.is_it_my_turn(&me) {
+                return Err(generic_err("Action isn't on you"));
             }
 
-            if me != table.turn {
-                return Err(generic_err("It's not your turn."));
-            }
-
-            if me == table.player_a {
-
-                if table.player_a_wallet < amount as i128 {
-                    return Err(generic_err("You cannot raise more than you have!"));
-                }
-
-                // I'm player A
-                table.player_a_wallet -= (table.player_b_bet + amount as i64 - table.player_a_bet) as i128;
-                if table.player_a_wallet < 0 {
-                    return Err(generic_err(
-                        "You don't have enough credits to raise by that much.",
-                    ));
-                }
-                table.player_a_bet = table.player_b_bet + amount as i64;
-
-                table.last_play = Some(String::from(format!(
-                    "Player A raised by {} credits",
-                    amount
-                )));
-                table.turn = table.player_b.clone();
-            } else {
-
-                // I'm player B
-                if table.player_b_wallet < amount as i128 {
-                    return Err(generic_err("You cannot raise more than you have!"));
-                }
-
-                table.player_b_wallet -= (table.player_a_bet + amount as i64 - table.player_b_bet) as i128;
-                if table.player_b_wallet < 0 {
-                    return Err(generic_err(
-                        "You don't have enough credits to raise by that much.",
-                    ));
-                }
-                table.player_b_bet = table.player_a_bet + amount as i64;
-
-                table.last_play = Some(String::from(format!(
-                    "Player B raised by {} credits",
-                    amount
-                )));
-                table.turn = table.player_a.clone();
-            }
+            table.raise(amount);
 
             deps.storage
                 .set(b"table", &serde_json::to_vec(&table).unwrap());
@@ -418,42 +657,17 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 return Err(generic_err("Action hasn't started yet"));
             }
 
-            let me = Some(deps.api.human_address(&env.message.sender).unwrap());
+            let me = deps.api.human_address(&env.message.sender)?;
 
-            if me != table.player_a && me != table.player_b {
-                return Err(generic_err("You are not a player, go away!"));
+            if !table.is_it_my_turn(&me) {
+                return Err(generic_err("Action isn't on you"));
             }
 
-            if me != table.turn {
-                return Err(generic_err("It's not your turn."));
+            table.call();
+
+            if table.betting_round_over() {
+                table.goto_next_stage(deps);
             }
-
-            if me == table.player_a {
-                // I'm player A
-                table.player_a_wallet -= (table.player_b_bet - table.player_a_bet) as i128;
-                if table.player_a_wallet < 0 {
-                    return Err(generic_err(
-                        "You cannot Call, your bet is bigger or equals to the other player's bet.",
-                    ));
-                }
-                table.player_a_bet = table.player_b_bet;
-
-                table.last_play = Some(String::from("Player A called"));
-            } else {
-                // I'm player B
-                table.player_b_wallet -= (table.player_a_bet - table.player_b_bet) as i128;
-                if table.player_b_wallet < 0 {
-                    return Err(generic_err(
-                        "You cannot Call, your bet is bigger or equals to the other player's bet.",
-                    ));
-                }
-                table.player_b_bet = table.player_a_bet;
-
-                table.last_play = Some(String::from("Player B called"));
-            }
-
-            table.turn = table.player_a.clone();
-            table.goto_next_stage(deps);
 
             deps.storage
                 .set(b"table", &serde_json::to_vec(&table).unwrap());
@@ -467,26 +681,16 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 return Err(generic_err("Action hasn't started yet"));
             }
 
-            let me = Some(deps.api.human_address(&env.message.sender).unwrap());
+            let me = deps.api.human_address(&env.message.sender)?;
 
-            if me != table.player_a && me != table.player_b {
-                return Err(generic_err("You are not a player, go away!"));
+            if !table.is_it_my_turn(&me) {
+                return Err(generic_err("Action isn't on you"));
             }
 
-            if me != table.turn {
-                return Err(generic_err("It's not your turn."));
-            }
+            table.fold();
 
-            if me == table.player_a {
-                table.stage = Stage::EndedWinnerB;
-                table.player_b_wallet += (table.player_a_bet + table.player_b_bet) as i128;
-                table.player_b_win_counter += 1;
-                table.last_play = Some(String::from("Player A folded"));
-            } else {
-                table.stage = Stage::EndedWinnerA;
-                table.player_a_wallet += (table.player_a_bet + table.player_b_bet) as i128;
-                table.player_a_win_counter += 1;
-                table.last_play = Some(String::from("Player B folded"));
+            if table.betting_round_over() {
+                table.goto_next_stage(deps);
             }
 
             deps.storage
@@ -603,95 +807,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-impl Table {
-    fn goto_next_stage<S: Storage, A: Api, Q: Querier>(&mut self, deps: &mut Extern<S, A, Q>) {
-        let deck: Vec<Card> = serde_json::from_slice(&deps.storage.get(b"deck").unwrap()).unwrap();
-
-        match self.stage {
-            Stage::PreFlop => {
-                self.stage = Stage::Flop;
-                self.community_cards = vec![
-                    deck[FLOP_FIRST_CARD],
-                    deck[FLOP_SECOND_CARD],
-                    deck[FLOP_THIRD_CARD],
-                ];
-            }
-            Stage::Flop => {
-                self.stage = Stage::Turn;
-                self.community_cards = vec![
-                    deck[FLOP_FIRST_CARD],
-                    deck[FLOP_SECOND_CARD],
-                    deck[FLOP_THIRD_CARD],
-                    deck[TURN_CARD],
-                ];
-            }
-            Stage::Turn => {
-                self.stage = Stage::River;
-                self.community_cards = vec![
-                    deck[FLOP_FIRST_CARD],
-                    deck[FLOP_SECOND_CARD],
-                    deck[FLOP_THIRD_CARD],
-                    deck[TURN_CARD],
-                    deck[RIVER_CARD],
-                ];
-            }
-            Stage::River => {
-                let mut player_a_7_card_hand = self.community_cards.clone();
-                player_a_7_card_hand
-                    .extend(vec![deck[PLAYER_A_FIRST_CARD], deck[PLAYER_A_SECOND_CARD]]);
-                let player_a_rank = player_a_7_card_hand.rank();
-
-                let mut player_b_7_card_hand = self.community_cards.clone();
-                player_b_7_card_hand
-                    .extend(vec![deck[PLAYER_B_FIRST_CARD], deck[PLAYER_B_SECOND_CARD]]);
-                let player_b_rank = player_b_7_card_hand.rank();
-
-                if player_a_rank > player_b_rank {
-                    self.stage = Stage::EndedWinnerA;
-                    self.player_a_wallet += (self.player_a_bet + self.player_b_bet) as i128;
-                    self.player_a_win_counter += 1;
-                } else if player_a_rank < player_b_rank {
-                    self.stage = Stage::EndedWinnerB;
-                    self.player_b_wallet += (self.player_a_bet + self.player_b_bet) as i128;
-                    self.player_b_win_counter += 1;
-                } else {
-                    self.stage = Stage::EndedDraw;
-                    self.player_a_wallet += self.player_a_bet as i128;
-                    self.player_b_wallet += self.player_b_bet as i128;
-                    self.tie_counter += 1;
-                }
-
-                self.player_a_hand = vec![deck[PLAYER_A_FIRST_CARD], deck[PLAYER_A_SECOND_CARD]];
-                self.player_b_hand = vec![deck[PLAYER_B_FIRST_CARD], deck[PLAYER_B_SECOND_CARD]];
-                return;
-            }
-            Stage::WaitingForPlayersToJoin => {
-                return;
-            }
-            Stage::EndedWinnerA => {
-                return;
-            }
-            Stage::EndedWinnerB => {
-                return;
-            }
-            Stage::EndedDraw => {
-                return;
-            }
-        }
-
-        // Turn ended with both player out of cash, just play it out
-        if self.player_a_wallet == 0 || self.player_b_wallet == 0 {
-            while self.stage != Stage::EndedDraw
-                && self.stage != Stage::EndedWinnerA
-                && self.stage != Stage::EndedWinnerB
-            {
-                self.goto_next_stage(deps);
-            }
-            return;
-        }
-    }
-}
-
 /////////////////////////////// Query ///////////////////////////////
 // These are getters, we only return what's public
 // player get their private information as a response to txs (handle)
@@ -705,51 +820,26 @@ pub enum QueryMsg {
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
-    match msg {
+    return match msg {
         QueryMsg::GetPublicData {} => {
-            return Ok(Binary(deps.storage.get(b"table").unwrap()));
+            let mut table: Table =
+                serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
+
+            table.filter_private_data();
+
+            Ok(Binary(serde_json::to_vec(&table).unwrap()))
         }
         QueryMsg::GetMyHand { secret } => {
             let secret_bytes = secret.to_be_bytes().to_vec();
 
-            let player_a_secret = match deps.storage.get(b"player_a_secret") {
-                None => {
-                    return Err(generic_err(
-                        "You are not a player, but there are still two seats left.",
-                    ))
-                }
-                Some(x) => x,
-            };
-            let player_b_secret = match deps.storage.get(b"player_b_secret") {
-                None => {
-                    return Err(generic_err(
-                        "You are not a player, but there is still one seat left.",
-                    ))
-                }
-                Some(x) => x,
-            };
+            let mut table: Table =
+                serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
 
-            let first_card_index;
-            let second_card_index;
-            if secret_bytes == player_a_secret {
-                first_card_index = PLAYER_A_FIRST_CARD;
-                second_card_index = PLAYER_A_SECOND_CARD;
-            } else if secret_bytes == player_b_secret {
-                first_card_index = PLAYER_B_FIRST_CARD;
-                second_card_index = PLAYER_B_SECOND_CARD;
-            } else {
-                return Err(generic_err("You are not a player, go away!"));
-            }
+            let player = table.get_player_by_secret(secret)?;
 
-            let deck: Vec<Card> =
-                serde_json::from_slice(&deps.storage.get(b"deck").unwrap()).unwrap();
-
-            let first_card: Card = deck[first_card_index];
-            let second_card: Card = deck[second_card_index];
-
-            return Ok(Binary(
-                serde_json::to_vec(&vec![first_card, second_card]).unwrap(),
-            ));
+            Ok(Binary(
+                serde_json::to_vec(&player.hand).unwrap(),
+            ))
         }
     }
 }
