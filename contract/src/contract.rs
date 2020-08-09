@@ -16,12 +16,12 @@ struct Table {
     game_counter: u64,
 
     player_a: Option<HumanAddr>,
-    player_a_wallet: u64,
-    player_a_bet: u64,
+    player_a_wallet: i64,
+    player_a_bet: i64,
 
     player_b: Option<HumanAddr>,
-    player_b_wallet: u64,
-    player_b_bet: u64,
+    player_b_wallet: i64,
+    player_b_bet: i64,
 
     starter: Option<HumanAddr>,
     turn: Option<HumanAddr>, // round ends if after a bet: starter != turn && player_a_bet == player_b_bet or if someone called
@@ -108,7 +108,7 @@ enum Stage {
     EndedDraw,
 }
 
-const MAX_CREDIT: u64 = 1_000_000;
+const MAX_CREDIT: i64 = 1_000_000;
 
 // indexes of cards in the deck
 const PLAYER_A_FIRST_CARD: usize = 0;
@@ -267,13 +267,13 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
             if me == table.player_a {
                 // I'm player A
-                table.player_a_bet = table.player_b_bet + amount;
-                if table.player_a_bet > MAX_CREDIT {
+                table.player_a_wallet -= table.player_b_bet + amount as i64 - table.player_a_bet;
+                if table.player_a_wallet < 0 {
                     return Err(generic_err(
-                        "You don't have enough credits to Raise by that much.",
+                        "You don't have enough credits to raise by that much.",
                     ));
                 }
-                table.player_a_wallet = MAX_CREDIT - table.player_a_bet;
+                table.player_a_bet = table.player_b_bet + amount as i64;
 
                 table.last_play = Some(String::from(format!(
                     "Player A raised by {} credits",
@@ -282,13 +282,13 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 table.turn = table.player_b.clone();
             } else {
                 // I'm player B
-                table.player_b_bet = table.player_a_bet + amount;
-                if table.player_b_bet > MAX_CREDIT {
+                table.player_b_wallet -= table.player_a_bet + amount as i64 - table.player_b_bet;
+                if table.player_b_wallet < 0 {
                     return Err(generic_err(
-                        "You don't have enough credits to Raise by that much.",
+                        "You don't have enough credits to raise by that much.",
                     ));
                 }
-                table.player_b_wallet = MAX_CREDIT - table.player_b_bet;
+                table.player_b_bet = table.player_a_bet + amount as i64;
 
                 table.last_play = Some(String::from(format!(
                     "Player B raised by {} credits",
@@ -331,26 +331,24 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
             if me == table.player_a {
                 // I'm player A
-                if table.player_a_bet >= table.player_b_bet {
+                table.player_a_wallet -= table.player_b_bet - table.player_a_bet;
+                if table.player_a_wallet < 0 {
                     return Err(generic_err(
                         "You cannot Call, your bet is bigger or equals to the other player's bet.",
                     ));
                 }
                 table.player_a_bet = table.player_b_bet;
-                table.player_a_wallet = MAX_CREDIT - table.player_a_bet;
-                // needs better logic here if MAX_CREDIT is different for each player
 
                 table.last_play = Some(String::from("Player A called"));
             } else {
                 // I'm player B
-                if table.player_b_bet >= table.player_a_bet {
+                table.player_b_wallet = table.player_a_bet - table.player_b_bet;
+                if table.player_b_wallet < 0 {
                     return Err(generic_err(
                         "You cannot Call, your bet is bigger or equals to the other player's bet.",
                     ));
                 }
                 table.player_b_bet = table.player_a_bet;
-                table.player_b_wallet = MAX_CREDIT - table.player_b_bet;
-                // needs better logic here if MAX_CREDIT is different for each player
 
                 table.last_play = Some(String::from("Player B called"));
             }
