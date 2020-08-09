@@ -1,4 +1,3 @@
-// use bincode;
 use cosmwasm_std::{
     generic_err, Api, BankMsg, Binary, CanonicalAddr, Coin, CosmosMsg, Env, Extern, HandleResponse,
     HandleResult, HumanAddr, InitResponse, InitResult, MigrateResponse, Querier, QueryResult,
@@ -41,6 +40,7 @@ struct Table {
     player_a_win_counter: u64,
     player_b_win_counter: u64,
     tie_counter: u64,
+
     max_credit: i128,
     min_credit: i128,
     big_blind: i128,
@@ -59,8 +59,8 @@ struct Table {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct InitMsg {
-    big_blind: u64,
+pub enum InitMsg {
+    CreateRoom { big_blind: u64 },
 }
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
@@ -68,43 +68,47 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     _env: Env,
     msg: InitMsg,
 ) -> InitResult {
-    let table = Table {
-        game_counter: 0,
+    match msg {
+        InitMsg::CreateRoom { big_blind } => {
+            let table = Table {
+                game_counter: 0,
 
-        player_a: None,
-        player_b: None,
+                player_a: None,
+                player_b: None,
 
-        player_a_wallet: 0,
-        player_b_wallet: 0,
+                player_a_wallet: 0,
+                player_b_wallet: 0,
 
-        player_a_bet: 0,
-        player_b_bet: 0,
+                player_a_bet: 0,
+                player_b_bet: 0,
 
-        stage: Stage::WaitingForPlayersToJoin,
-        starter: None,
-        turn: None,
-        last_play: None,
+                stage: Stage::WaitingForPlayersToJoin,
+                starter: None,
+                turn: None,
+                last_play: None,
 
-        community_cards: vec![],
+                community_cards: vec![],
 
-        player_a_hand: vec![],
-        player_b_hand: vec![],
+                player_a_hand: vec![],
+                player_b_hand: vec![],
 
-        player_a_wants_rematch: false,
-        player_b_wants_rematch: false,
+                player_a_wants_rematch: false,
+                player_b_wants_rematch: false,
 
-        player_a_win_counter: 0,
-        player_b_win_counter: 0,
-        tie_counter: 0,
-        max_credit: (msg.big_blind * (MAX_TABLE_BIG_BLINDS as u64)) as i128,
-        min_credit: (msg.big_blind * (MIN_TABLE_BIG_BLINDS as u64)) as i128,
-        big_blind: (msg.big_blind) as i128,
-    };
+                player_a_win_counter: 0,
+                player_b_win_counter: 0,
+                tie_counter: 0,
+                max_credit: (big_blind * MAX_TABLE_BIG_BLINDS) as i128,
+                min_credit: (big_blind * MIN_TABLE_BIG_BLINDS) as i128,
+                big_blind: big_blind as i128,
+            };
 
-    deps.storage
-        .set(b"table", &serde_json::to_vec(&table).unwrap());
+            deps.storage
+                .set(b"table", &serde_json::to_vec(&table).unwrap());
 
-    Ok(InitResponse::default())
+            Ok(InitResponse::default())
+        }
+    }
 }
 
 /////////////////////////////// Handle ///////////////////////////////
@@ -145,8 +149,8 @@ impl Stage {
     }
 }
 
-const MAX_TABLE_BIG_BLINDS: u8 = 100;
-const MIN_TABLE_BIG_BLINDS: u8 = 20;
+const MAX_TABLE_BIG_BLINDS: u64 = 100;
+const MIN_TABLE_BIG_BLINDS: u64 = 20;
 // indexes of cards in the deck
 const PLAYER_A_FIRST_CARD: usize = 0;
 const PLAYER_B_FIRST_CARD: usize = 1;

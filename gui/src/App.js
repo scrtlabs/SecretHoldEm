@@ -12,7 +12,8 @@ import "./App.css";
 const PokerSolver = require("pokersolver").Hand;
 
 const nf = new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 });
-const codeId = 10;
+const codeId = 14;
+console.log("Code ID:", codeId);
 const refreshTableStateInterval = 2000;
 
 const BIG_BLIND = 1_000_000;
@@ -295,7 +296,7 @@ class App extends React.Component {
       await this.state.secretJsClient.instantiate(
         codeId,
         {
-          big_blind: BIG_BLIND,
+          create_room: { big_blind: BIG_BLIND },
         },
         this.state.new_room_name
       );
