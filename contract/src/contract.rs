@@ -392,10 +392,12 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
             if me == table.player_a {
                 table.stage = Stage::EndedWinnerB;
+                table.player_b_wallet += table.player_a_bet + table.player_b_bet;
                 table.player_b_win_counter += 1;
                 table.last_play = Some(String::from("Player A folded"));
             } else {
                 table.stage = Stage::EndedWinnerA;
+                table.player_a_wallet += table.player_a_bet + table.player_b_bet;
                 table.player_a_win_counter += 1;
                 table.last_play = Some(String::from("Player B folded"));
             }
@@ -464,8 +466,18 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 Stage::Flop => return Err(generic_err("We're in a middle of a game here.")),
                 Stage::Turn => return Err(generic_err("We're in a middle of a game here.")),
                 Stage::River => return Err(generic_err("We're in a middle of a game here.")),
-                Stage::EndedWinnerA => { /* continue */ }
-                Stage::EndedWinnerB => { /* continue */ }
+                Stage::EndedWinnerA => {
+                    if table.player_b_wallet == 0 {
+                        return Err(generic_err("Cannot play a rematch, player B lost it all!"));
+                    }
+                    // continue
+                }
+                Stage::EndedWinnerB => {
+                    if table.player_a_wallet == 0 {
+                        return Err(generic_err("Cannot play a rematch, player A lost it all!"));
+                    }
+                    // continue
+                }
                 Stage::EndedDraw => { /* continue */ }
             };
 
@@ -504,12 +516,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
             deps.storage
                 .set(b"deck", &serde_json::to_vec(&deck).unwrap());
-
-            table.player_a_wallet = MAX_CREDIT;
-            table.player_b_wallet = MAX_CREDIT;
-
-            table.player_a_bet = 0;
-            table.player_b_bet = 0;
 
             table.stage = Stage::PreFlop;
             table.turn = table.starter.clone();
@@ -576,12 +582,16 @@ impl Table {
 
                 if player_a_rank > player_b_rank {
                     self.stage = Stage::EndedWinnerA;
+                    self.player_a_wallet += self.player_a_bet + self.player_b_bet;
                     self.player_a_win_counter += 1;
                 } else if player_a_rank < player_b_rank {
                     self.stage = Stage::EndedWinnerB;
+                    self.player_b_wallet += self.player_a_bet + self.player_b_bet;
                     self.player_b_win_counter += 1;
                 } else {
                     self.stage = Stage::EndedDraw;
+                    self.player_a_wallet += self.player_a_bet;
+                    self.player_b_wallet += self.player_b_bet;
                     self.tie_counter += 1;
                 }
 

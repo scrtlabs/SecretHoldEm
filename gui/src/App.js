@@ -651,11 +651,16 @@ class App extends React.Component {
     ) {
       rematch = (
         <div>
-          {this.getMe() ? (
+          {this.getMe() && this.getOther() ? (
             <Button
               loading={this.state.rematchLoading || this.getMe().wants_rematch}
               onClick={this.rematch.bind(this)}
-              disabled={this.state.rematchLoading || this.getMe().wants_rematch}
+              disabled={
+                this.state.rematchLoading ||
+                this.getMe().wallet === 0 ||
+                this.getOther().wallet === 0 ||
+                this.getMe().wants_rematch
+              }
             >
               Rematch!
             </Button>
@@ -910,7 +915,11 @@ class App extends React.Component {
                   value={this.state.raiseAmount}
                   max={
                     this.getOther() && this.getMe()
-                      ? 1000000 - this.getOther().bet
+                      ? Math.min(
+                          this.getOther().wallet,
+                          this.getMe().wallet -
+                            (this.getOther().bet - this.getMe().bet)
+                        )
                       : 0
                   }
                   onChange={(v) => this.setState({ raiseAmount: v })}
