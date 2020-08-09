@@ -11,9 +11,13 @@ import "./App.css";
 
 const PokerSolver = require("pokersolver").Hand;
 
-const nf = new Intl.NumberFormat();
+const nf = new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 });
 const codeId = 8;
 const refreshTableStateInterval = 2000;
+
+const BIG_BLIND = 1_000_000;
+const MAX_TABLE_BIG_BLINDS = 100;
+const MIN_TABLE_BIG_BLINDS = 20;
 
 const emptyState = {
   game_address: "",
@@ -36,13 +40,17 @@ const emptyState = {
   checkLoading: false,
   callLoading: false,
   raiseLoading: false,
+  withdrawLoading: false,
+  depositLoading: false,
   raiseAmount: 25000,
+  depositAmount: BIG_BLIND * MIN_TABLE_BIG_BLINDS,
   rematchLoading: false,
   player_a_wants_rematch: false,
   player_b_wants_rematch: false,
   player_a_win_counter: 0,
   player_b_win_counter: 0,
   tie_counter: 0,
+  myWalletBalanceUscrt: 0,
 };
 
 class App extends React.Component {
@@ -184,6 +192,7 @@ class App extends React.Component {
 
         if (!data) {
           this.setState({
+            myWalletBalanceUscrt: 0,
             myWalletBalance: (
               <span>
                 (No funds - Go get some{" "}
@@ -200,6 +209,7 @@ class App extends React.Component {
           });
         } else {
           this.setState({
+            myWalletBalanceUscrt: +data.balance[0].amount,
             myWalletBalance: `(${nf.format(
               +data.balance[0].amount / 1000000
             )} SCRT)`,
@@ -284,7 +294,9 @@ class App extends React.Component {
     try {
       await this.state.secretJsClient.instantiate(
         codeId,
-        {},
+        {
+          big_blind: BIG_BLIND,
+        },
         this.state.new_room_name
       );
     } catch (e) {
@@ -312,15 +324,23 @@ class App extends React.Component {
     localStorage.setItem(this.state.game_address, secret);
 
     try {
-      await this.state.secretJsClient.execute(this.state.game_address, {
-        join: { secret },
-      });
+      await this.state.secretJsClient.execute(
+        this.state.game_address,
+        {
+          join: { secret },
+        },
+        "",
+        {
+          denom: "uscrt",
+          amount: this.state.depositAmount,
+        }
+      );
     } catch (e) {
       console.log("join", e);
     }
 
     setTimeout(
-      () => this.setState({ joinLoading: false }),
+      () => this.setState({ joinLoading: false, depositAmount: 0 }),
       refreshTableStateInterval
     );
   }
@@ -399,6 +419,41 @@ class App extends React.Component {
     }
     setTimeout(
       () => this.setState({ rematchLoading: false }),
+      refreshTableStateInterval
+    );
+  }
+
+  async withdraw() {
+    this.setState({ withdrawLoading: true });
+    try {
+      await this.state.secretJsClient.execute(this.state.game_address, {
+        withdraw: {},
+      });
+    } catch (e) {
+      console.log("withdraw", e);
+    }
+    setTimeout(
+      () => this.setState({ withdrawLoading: false }),
+      refreshTableStateInterval
+    );
+  }
+
+  async deposit() {
+    this.setState({ depositLoading: true });
+    try {
+      await this.state.secretJsClient.execute(
+        this.state.game_address,
+        {
+          top_up: {},
+        },
+        "",
+        { denom: "uscrt", amount: this.state.depositAmount }
+      );
+    } catch (e) {
+      console.log("deposit", e);
+    }
+    setTimeout(
+      () => this.setState({ depositLoading: false, depositAmount: 0 }),
       refreshTableStateInterval
     );
   }
@@ -597,15 +652,34 @@ class App extends React.Component {
       stage = (
         <span>
           <div>Waiting for players</div>
-          <Button
-            loading={isLoading}
-            disabled={
-              isLoading || typeof this.state.myWalletBalance !== "string"
-            }
-            onClick={this.joinRoom.bind(this)}
-          >
-            Join
-          </Button>
+          <div>
+            <Button
+              loading={isLoading}
+              disabled={
+                isLoading ||
+                typeof this.state.myWalletBalanceUscrt === 0 ||
+                this.state.depositAmount === 0
+              }
+              onClick={this.joinRoom.bind(this)}
+            >
+              Join and Deposit
+              {` (${nf.format(
+                this.state.depositAmount / 1000000
+              )} SCRT = ${nf.format(this.state.depositAmount)} credits)`}
+            </Button>
+            <center>
+              <Slider
+                style={{ width: "400px" }}
+                min={MIN_TABLE_BIG_BLINDS * BIG_BLIND}
+                value={this.state.depositAmount}
+                max={Math.min(
+                  this.state.myWalletBalanceUscrt,
+                  MAX_TABLE_BIG_BLINDS * BIG_BLIND
+                )}
+                onChange={(v) => this.setState({ depositAmount: v })}
+              />
+            </center>
+          </div>
         </span>
       );
     } else if (stage) {
@@ -692,13 +766,74 @@ class App extends React.Component {
               padding: 10,
             }}
           >
-            <div
-              style={{
-                position: "relative",
-                zIndex: 9999,
-              }}
-            >
-              You: {this.state.myWalletAddress} {this.state.myWalletBalance}
+            <div style={{ width: "600px" }}>
+              <div
+                style={{
+                  position: "relative",
+                  zIndex: 9999,
+                }}
+              >
+                You: {this.state.myWalletAddress} {this.state.myWalletBalance}
+              </div>
+              <div>
+                <Button
+                  loading={this.state.withdrawLoading}
+                  onClick={this.withdraw.bind(this)}
+                  disabled={
+                    this.state.withdrawLoading ||
+                    !this.getMe() ||
+                    this.getMe().wallet === 0
+                  }
+                >
+                  {!this.state.stage.includes("Ended") &&
+                  !this.state.stage.includes("Waiting")
+                    ? "Fold + "
+                    : ""}
+                  Withdraw
+                  {this.getMe()
+                    ? ` (${nf.format(this.getMe().wallet / 1000000)} SCRT)`
+                    : ""}
+                </Button>
+                <Button
+                  loading={this.state.depositLoading}
+                  onClick={this.deposit.bind(this)}
+                  disabled={
+                    this.state.depositLoading ||
+                    this.state.depositAmount === 0 ||
+                    !this.getMe()
+                  }
+                >
+                  Deposit
+                  {this.getMe()
+                    ? ` (${nf.format(
+                        this.state.depositAmount / 1000000
+                      )} SCRT = ${nf.format(this.state.depositAmount)} credits)`
+                    : ""}
+                </Button>
+
+                <span style={{ padding: 10 }} hidden={!this.getMe()}>
+                  <Slider
+                    style={{ width: "400px" }}
+                    min={
+                      !this.getMe()
+                        ? 0
+                        : BIG_BLIND * MIN_TABLE_BIG_BLINDS -
+                          (this.getMe().wallet + this.getMe().bet)
+                    }
+                    value={this.state.depositAmount}
+                    max={
+                      !this.getMe()
+                        ? 0
+                        : Math.min(
+                            this.state.myWalletBalanceUscrt,
+                            BIG_BLIND * MAX_TABLE_BIG_BLINDS -
+                              (this.getMe().wallet + this.getMe().bet)
+                          )
+                    }
+                    onChange={(v) => this.setState({ depositAmount: v })}
+                  />
+                </span>
+              </div>
             </div>
 
             <div
