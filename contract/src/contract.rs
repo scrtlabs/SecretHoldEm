@@ -523,6 +523,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
             table.community_cards = vec![];
 
+            table.player_a_bet = 0;
+            table.player_b_bet = 0;
+
             table.player_a_hand = vec![];
             table.player_b_hand = vec![];
 
