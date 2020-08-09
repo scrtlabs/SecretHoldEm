@@ -91,11 +91,11 @@ class App extends React.Component {
       tx_encryption_seed,
       {
         init: {
-          amount: [{ amount: "1", denom: "uscrt" }],
+          amount: [{ amount: "500000", denom: "uscrt" }],
           gas: "500000",
         },
         exec: {
-          amount: [{ amount: "1", denom: "uscrt" }],
+          amount: [{ amount: "500000", denom: "uscrt" }],
           gas: "500000",
         },
       }
