@@ -13,11 +13,11 @@ struct Table {
     game_counter: u64,
 
     player_a: Option<HumanAddr>,
-    player_a_wallet: u128,
+    player_a_wallet: i128,
     player_a_bet: i64,
 
     player_b: Option<HumanAddr>,
-    player_b_wallet: u128,
+    player_b_wallet: i128,
     player_b_bet: i64,
 
     starter: Option<HumanAddr>,
@@ -41,6 +41,13 @@ struct Table {
     min_credit: u64,
     big_blind: u64,
 }
+
+// struct Player {
+//     address: Option<HumanAddr>,
+//     position: u8,
+//     wallet: u128,
+//     current_bet: i64
+// }
 
 /////////////////////////////// Init ///////////////////////////////
 //
@@ -131,7 +138,6 @@ impl Stage {
     }
 }
 
-const MAX_CREDIT: i64 = 1_000_000;
 const MAX_TABLE_BIG_BLINDS: u8 = 100;
 const MIN_TABLE_BIG_BLINDS: u8 = 20;
 // indexes of cards in the deck
@@ -177,9 +183,9 @@ pub fn winner_winner_chicken_dinner(contract_address: HumanAddr, player: HumanAd
     }
 }
 
-fn can_deposit(env: &Env, table: &Table, current_amount: u128) -> StdResult<u128> {
+fn can_deposit(env: &Env, table: &Table, current_amount: i128) -> StdResult<i128> {
 
-    let mut deposit = Uint128::zero();
+    let deposit: Uint128;
 
     if env.message.sent_funds.len() == 0 {
         return Err(generic_err("SHOW ME THE MONEY"));
@@ -189,15 +195,15 @@ fn can_deposit(env: &Env, table: &Table, current_amount: u128) -> StdResult<u128
         }
         deposit = env.message.sent_funds[0].amount;
 
-        if deposit.u128() + current_amount < table.min_credit as u128 {
+        if deposit.u128() as i128 + current_amount < table.min_credit as i128 {
             return Err(generic_err("GTFO DIRTY SHORT STACKER"));
         }
 
-        if deposit.u128() + current_amount > table.max_credit as u128 {
+        if deposit.u128() as i128 + current_amount > table.max_credit as i128 {
             return Err(generic_err("GTFO DIRTY DEEP STACKER"));
         }
     }
-    Ok(deposit.u128())
+    Ok(deposit.u128() as i128)
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
@@ -240,7 +246,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 //fold player b
                 if !table.stage.no_more_action() {
                     table.stage = Stage::EndedWinnerA;
-                    table.player_a_wallet += (table.player_a_bet + table.player_b_bet) as u128;
+                    table.player_a_wallet += (table.player_a_bet + table.player_b_bet) as i128;
                     table.player_a_win_counter += 1;
                     table.last_play = Some(String::from("Player B folded"));
                 }
@@ -252,7 +258,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 //fold player a
                 if !table.stage.no_more_action() {
                     table.stage = Stage::EndedWinnerB;
-                    table.player_b_wallet += (table.player_a_bet + table.player_b_bet) as u128;
+                    table.player_b_wallet += (table.player_a_bet + table.player_b_bet) as i128;
                     table.player_b_win_counter += 1;
                     table.last_play = Some(String::from("Player B folded"));
                 }
@@ -360,12 +366,12 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
             if me == table.player_a {
 
-                if table.player_a_wallet < amount as u128 {
+                if table.player_a_wallet < amount as i128 {
                     return Err(generic_err("You cannot raise more than you have!"));
                 }
 
                 // I'm player A
-                table.player_a_wallet -= (table.player_b_bet + amount as i64 - table.player_a_bet) as u128;
+                table.player_a_wallet -= (table.player_b_bet + amount as i64 - table.player_a_bet) as i128;
                 if table.player_a_wallet < 0 {
                     return Err(generic_err(
                         "You don't have enough credits to raise by that much.",
@@ -381,11 +387,11 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             } else {
 
                 // I'm player B
-                if table.player_b_wallet < amount as u128 {
+                if table.player_b_wallet < amount as i128 {
                     return Err(generic_err("You cannot raise more than you have!"));
                 }
 
-                table.player_b_wallet -= (table.player_a_bet + amount as i64 - table.player_b_bet) as u128;
+                table.player_b_wallet -= (table.player_a_bet + amount as i64 - table.player_b_bet) as i128;
                 if table.player_b_wallet < 0 {
                     return Err(generic_err(
                         "You don't have enough credits to raise by that much.",
@@ -424,7 +430,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
             if me == table.player_a {
                 // I'm player A
-                table.player_a_wallet -= (table.player_b_bet - table.player_a_bet) as u128;
+                table.player_a_wallet -= (table.player_b_bet - table.player_a_bet) as i128;
                 if table.player_a_wallet < 0 {
                     return Err(generic_err(
                         "You cannot Call, your bet is bigger or equals to the other player's bet.",
@@ -435,7 +441,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 table.last_play = Some(String::from("Player A called"));
             } else {
                 // I'm player B
-                table.player_b_wallet -= (table.player_a_bet - table.player_b_bet) as u128;
+                table.player_b_wallet -= (table.player_a_bet - table.player_b_bet) as i128;
                 if table.player_b_wallet < 0 {
                     return Err(generic_err(
                         "You cannot Call, your bet is bigger or equals to the other player's bet.",
@@ -473,12 +479,12 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
             if me == table.player_a {
                 table.stage = Stage::EndedWinnerB;
-                table.player_b_wallet += (table.player_a_bet + table.player_b_bet) as u128;
+                table.player_b_wallet += (table.player_a_bet + table.player_b_bet) as i128;
                 table.player_b_win_counter += 1;
                 table.last_play = Some(String::from("Player A folded"));
             } else {
                 table.stage = Stage::EndedWinnerA;
-                table.player_a_wallet += (table.player_a_bet + table.player_b_bet) as u128;
+                table.player_a_wallet += (table.player_a_bet + table.player_b_bet) as i128;
                 table.player_a_win_counter += 1;
                 table.last_play = Some(String::from("Player B folded"));
             }
@@ -642,16 +648,16 @@ impl Table {
 
                 if player_a_rank > player_b_rank {
                     self.stage = Stage::EndedWinnerA;
-                    self.player_a_wallet += (self.player_a_bet + self.player_b_bet) as u128;
+                    self.player_a_wallet += (self.player_a_bet + self.player_b_bet) as i128;
                     self.player_a_win_counter += 1;
                 } else if player_a_rank < player_b_rank {
                     self.stage = Stage::EndedWinnerB;
-                    self.player_b_wallet += (self.player_a_bet + self.player_b_bet) as u128;
+                    self.player_b_wallet += (self.player_a_bet + self.player_b_bet) as i128;
                     self.player_b_win_counter += 1;
                 } else {
                     self.stage = Stage::EndedDraw;
-                    self.player_a_wallet += self.player_a_bet as u128;
-                    self.player_b_wallet += self.player_b_bet as u128;
+                    self.player_a_wallet += self.player_a_bet as i128;
+                    self.player_b_wallet += self.player_b_bet as i128;
                     self.tie_counter += 1;
                 }
 
