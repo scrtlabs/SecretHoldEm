@@ -13,11 +13,11 @@ struct Table {
     game_counter: u64,
 
     player_a: Option<HumanAddr>,
-    player_a_wallet: i64,
+    player_a_wallet: u128,
     player_a_bet: i64,
 
     player_b: Option<HumanAddr>,
-    player_b_wallet: i64,
+    player_b_wallet: u128,
     player_b_bet: i64,
 
     starter: Option<HumanAddr>,
@@ -37,6 +37,9 @@ struct Table {
     player_a_win_counter: u64,
     player_b_win_counter: u64,
     tie_counter: u64,
+    max_credit: u64,
+    min_credit: u64,
+    big_blind: u64,
 }
 
 /////////////////////////////// Init ///////////////////////////////
@@ -45,12 +48,14 @@ struct Table {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct InitMsg {}
+pub struct InitMsg {
+    big_blind: u64
+}
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     _env: Env,
-    _msg: InitMsg,
+    msg: InitMsg,
 ) -> InitResult {
     let table = Table {
         game_counter: 0,
@@ -80,6 +85,9 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         player_a_win_counter: 0,
         player_b_win_counter: 0,
         tie_counter: 0,
+        max_credit: msg.big_blind * (MAX_TABLE_BIG_BLINDS as u64),
+        min_credit: msg.big_blind * (MIN_TABLE_BIG_BLINDS as u64),
+        big_blind: msg.big_blind
     };
 
     deps.storage
@@ -105,8 +113,27 @@ enum Stage {
     EndedDraw,
 }
 
-const MAX_CREDIT: i64 = 1_000_000;
+impl Stage {
+    fn no_more_action(&self) -> bool {
+        match &self {
+            Self::EndedWinnerA | Self::EndedWinnerB | Self::EndedDraw | Self::WaitingForPlayersToJoin => true,
+            _ => false,
+        }
+    }
 
+    fn next_round(&self) -> Self {
+        match &self {
+            Self::PreFlop => Self::Flop,
+            Self::Flop => Self::Turn,
+            Self::Turn => Self::River,
+            _ => Self::PreFlop
+        }
+    }
+}
+
+const MAX_CREDIT: i64 = 1_000_000;
+const MAX_TABLE_BIG_BLINDS: u8 = 100;
+const MIN_TABLE_BIG_BLINDS: u8 = 20;
 // indexes of cards in the deck
 const PLAYER_A_FIRST_CARD: usize = 0;
 const PLAYER_B_FIRST_CARD: usize = 1;
@@ -132,16 +159,17 @@ pub enum HandleMsg {
     Check {},
     Rematch {},
     Withdraw {},
+    TopUp {},
 }
 
-pub fn winner_winner_chicken_dinner(contract_address: HumanAddr, player: HumanAddr) -> HandleResponse {
+pub fn winner_winner_chicken_dinner(contract_address: HumanAddr, player: HumanAddr, amount: Uint128) -> HandleResponse {
     HandleResponse{
         messages: vec![CosmosMsg::Bank(BankMsg::Send {
             from_address: contract_address,
             to_address: player,
             amount: vec![Coin{
                 denom: "uscrt".to_string(),
-                amount: Uint128(200_000_000),
+                amount,
             }]}),
         ],
         log: vec![],
@@ -149,45 +177,98 @@ pub fn winner_winner_chicken_dinner(contract_address: HumanAddr, player: HumanAd
     }
 }
 
+fn can_deposit(env: &Env, table: &Table, current_amount: u128) -> StdResult<u128> {
+
+    let mut deposit = Uint128::zero();
+
+    if env.message.sent_funds.len() == 0 {
+        return Err(generic_err("SHOW ME THE MONEY"));
+    } else {
+        if env.message.sent_funds[0].denom != "uscrt" {
+            return Err(generic_err("WRONG MONEY"));
+        }
+        deposit = env.message.sent_funds[0].amount;
+
+        if deposit.u128() + current_amount < table.min_credit as u128 {
+            return Err(generic_err("GTFO DIRTY SHORT STACKER"));
+        }
+
+        if deposit.u128() + current_amount > table.max_credit as u128 {
+            return Err(generic_err("GTFO DIRTY DEEP STACKER"));
+        }
+    }
+    Ok(deposit.u128())
+}
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     msg: HandleMsg,
 ) -> HandleResult {
-    match msg {
-        HandleMsg::Withdraw {} => {
+    return match msg {
+        HandleMsg::TopUp {} => {
 
+            let player_name = deps.api.human_address(&env.message.sender)?;
+
+            let mut table: Table =
+                serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
+
+            let pb = (&table).player_b.clone().unwrap_or(HumanAddr::default());
+            let pa = (&table).player_a.clone().unwrap_or(HumanAddr::default());
+
+            if player_name == pb {
+                let deposit = can_deposit(&env, &table, table.player_b_wallet)?;
+                table.player_b_wallet += deposit;
+            } else if player_name == pa {
+                let deposit = can_deposit(&env, &table, table.player_a_wallet)?;
+                table.player_a_wallet += deposit;
+            } else {
+                return Err(generic_err("You are not a player, or you are broke! Either way, go away!"));
+            }
+
+            Ok(HandleResponse::default())
+        }
+        HandleMsg::Withdraw {} => {
             let player_name = deps.api.human_address(&env.message.sender)?;
             let contract_address = deps.api.human_address(&env.contract.address)?;
 
             let mut table: Table =
                 serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
 
-            if table.player_a_wallet == 0 && player_name == table.player_b.unwrap() {
-                Ok(winner_winner_chicken_dinner(contract_address, player_name))
-            } else if table.player_b_wallet == 0 && player_name == table.player_a.unwrap() {
-                Ok(winner_winner_chicken_dinner(contract_address, player_name))
+            if player_name == table.player_b.unwrap() && table.player_b_wallet != 0 {
+
+                //fold player b
+                if !table.stage.no_more_action() {
+                    table.stage = Stage::EndedWinnerA;
+                    table.player_a_wallet += (table.player_a_bet + table.player_b_bet) as u128;
+                    table.player_a_win_counter += 1;
+                    table.last_play = Some(String::from("Player B folded"));
+                }
+                let amount = table.player_b_wallet;
+
+                return Ok(winner_winner_chicken_dinner(contract_address, player_name, Uint128(amount as u128)));
+            } else if player_name == table.player_a.unwrap() && table.player_a_wallet != 0 {
+
+                //fold player a
+                if !table.stage.no_more_action() {
+                    table.stage = Stage::EndedWinnerB;
+                    table.player_b_wallet += (table.player_a_bet + table.player_b_bet) as u128;
+                    table.player_b_win_counter += 1;
+                    table.last_play = Some(String::from("Player B folded"));
+                }
+                let amount = table.player_a_wallet;
+
+                return Ok(winner_winner_chicken_dinner(contract_address, player_name, Uint128(amount as u128)));
             }
 
-            return Err(generic_err("PLAY MORE"));
+            Err(generic_err("You are not a player, or you are broke! Either way, go away!"))
         },
         HandleMsg::Join { secret } => {
 
-            let min_deposit: Coin = Coin{
-                denom: "uscrt".to_string(),
-                amount: Uint128(100_000_000),
-            };
+            let mut table: Table =
+                serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
 
-            if env.message.sent_funds.len() == 0 {
-                return Err(generic_err("SHOW ME THE MONEY"));
-            } else {
-                let deposit = env.message.sent_funds[0].clone();
-
-                if deposit.ne(&min_deposit) {
-                    return Err(generic_err("WRONG MONEY"));
-                }
-            }
+            let deposit = can_deposit(&env, &table, 0)?;
 
             let player_a = deps.storage.get(b"player_a");
             let player_b = deps.storage.get(b"player_b");
@@ -209,10 +290,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                     .human_address(&CanonicalAddr(Binary(player_name.to_vec())))
                     .unwrap();
 
-                let mut table: Table =
-                    serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
+
                 table.player_a = Some(a_human_addr.clone());
-                table.player_a_wallet = MAX_CREDIT;
+                table.player_a_wallet = deposit;
                 table.starter = Some(a_human_addr.clone());
                 table.turn = Some(a_human_addr.clone());
                 deps.storage
@@ -249,57 +329,24 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 .human_address(&CanonicalAddr(Binary(player_name.to_vec())))
                 .unwrap();
 
-            let table = Table {
-                game_counter: 0,
+            table.player_b = Some(b_human_addr);
+            table.player_b_wallet = deposit;
 
-                player_a: Some(a_human_addr.clone()),
-                player_b: Some(b_human_addr.clone()),
-
-                player_a_wallet: MAX_CREDIT,
-                player_b_wallet: MAX_CREDIT,
-
-                player_a_bet: 0,
-                player_b_bet: 0,
-
-                stage: Stage::PreFlop,
-                starter: Some(a_human_addr.clone()),
-                turn: Some(a_human_addr.clone()),
-                last_play: None,
-
-                community_cards: vec![],
-
-                player_a_hand: vec![],
-                player_b_hand: vec![],
-
-                player_a_wants_rematch: false,
-                player_b_wants_rematch: false,
-
-                player_a_win_counter: 0,
-                player_b_win_counter: 0,
-                tie_counter: 0,
-            };
+            table.stage = table.stage.next_round();
+            table.starter = Some(a_human_addr.clone());
+            table.turn = Some(a_human_addr.clone());
 
             deps.storage
                 .set(b"table", &serde_json::to_vec(&table).unwrap());
 
-            return Ok(HandleResponse::default());
+            Ok(HandleResponse::default())
         }
         HandleMsg::Raise { amount } => {
             let mut table: Table =
                 serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
-            match table.stage {
-                Stage::EndedWinnerA => return Err(generic_err("The game is over.")),
-                Stage::EndedWinnerB => return Err(generic_err("The game is over.")),
-                Stage::EndedDraw => return Err(generic_err("The game is over.")),
-                Stage::WaitingForPlayersToJoin => {
-                    return Err(generic_err("The game hasn't started yet!"))
-                }
-
-                Stage::PreFlop => { /* continue */ }
-                Stage::Flop => { /* continue */ }
-                Stage::Turn => { /* continue */ }
-                Stage::River => { /* continue */ }
-            };
+            if table.stage.no_more_action() {
+                return Err(generic_err("Action hasn't started yet"));
+            }
 
             let me = Some(deps.api.human_address(&env.message.sender).unwrap());
 
@@ -312,8 +359,13 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             }
 
             if me == table.player_a {
+
+                if table.player_a_wallet < amount as u128 {
+                    return Err(generic_err("You cannot raise more than you have!"));
+                }
+
                 // I'm player A
-                table.player_a_wallet -= table.player_b_bet + amount as i64 - table.player_a_bet;
+                table.player_a_wallet -= (table.player_b_bet + amount as i64 - table.player_a_bet) as u128;
                 if table.player_a_wallet < 0 {
                     return Err(generic_err(
                         "You don't have enough credits to raise by that much.",
@@ -327,8 +379,13 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 )));
                 table.turn = table.player_b.clone();
             } else {
+
                 // I'm player B
-                table.player_b_wallet -= table.player_a_bet + amount as i64 - table.player_b_bet;
+                if table.player_b_wallet < amount as u128 {
+                    return Err(generic_err("You cannot raise more than you have!"));
+                }
+
+                table.player_b_wallet -= (table.player_a_bet + amount as i64 - table.player_b_bet) as u128;
                 if table.player_b_wallet < 0 {
                     return Err(generic_err(
                         "You don't have enough credits to raise by that much.",
@@ -346,24 +403,14 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             deps.storage
                 .set(b"table", &serde_json::to_vec(&table).unwrap());
 
-            return Ok(HandleResponse::default());
+            Ok(HandleResponse::default())
         }
         HandleMsg::Call {} => {
             let mut table: Table =
                 serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
-            match table.stage {
-                Stage::EndedWinnerA => return Err(generic_err("The game is over.")),
-                Stage::EndedWinnerB => return Err(generic_err("The game is over.")),
-                Stage::EndedDraw => return Err(generic_err("The game is over.")),
-                Stage::WaitingForPlayersToJoin => {
-                    return Err(generic_err("The game hasn't started yet!"))
-                }
-
-                Stage::PreFlop => { /* continue */ }
-                Stage::Flop => { /* continue */ }
-                Stage::Turn => { /* continue */ }
-                Stage::River => { /* continue */ }
-            };
+            if table.stage.no_more_action() {
+                return Err(generic_err("Action hasn't started yet"));
+            }
 
             let me = Some(deps.api.human_address(&env.message.sender).unwrap());
 
@@ -377,7 +424,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
             if me == table.player_a {
                 // I'm player A
-                table.player_a_wallet -= table.player_b_bet - table.player_a_bet;
+                table.player_a_wallet -= (table.player_b_bet - table.player_a_bet) as u128;
                 if table.player_a_wallet < 0 {
                     return Err(generic_err(
                         "You cannot Call, your bet is bigger or equals to the other player's bet.",
@@ -388,7 +435,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 table.last_play = Some(String::from("Player A called"));
             } else {
                 // I'm player B
-                table.player_b_wallet -= table.player_a_bet - table.player_b_bet;
+                table.player_b_wallet -= (table.player_a_bet - table.player_b_bet) as u128;
                 if table.player_b_wallet < 0 {
                     return Err(generic_err(
                         "You cannot Call, your bet is bigger or equals to the other player's bet.",
@@ -405,24 +452,14 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             deps.storage
                 .set(b"table", &serde_json::to_vec(&table).unwrap());
 
-            return Ok(HandleResponse::default());
+            Ok(HandleResponse::default())
         }
         HandleMsg::Fold {} => {
             let mut table: Table =
                 serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
-            match table.stage {
-                Stage::EndedWinnerA => return Err(generic_err("The game is over.")),
-                Stage::EndedWinnerB => return Err(generic_err("The game is over.")),
-                Stage::EndedDraw => return Err(generic_err("The game is over.")),
-                Stage::WaitingForPlayersToJoin => {
-                    return Err(generic_err("The game hasn't started yet!"))
-                }
-
-                Stage::PreFlop => { /* continue */ }
-                Stage::Flop => { /* continue */ }
-                Stage::Turn => { /* continue */ }
-                Stage::River => { /* continue */ }
-            };
+            if table.stage.no_more_action() {
+                return Err(generic_err("Action hasn't started yet"));
+            }
 
             let me = Some(deps.api.human_address(&env.message.sender).unwrap());
 
@@ -436,12 +473,12 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
             if me == table.player_a {
                 table.stage = Stage::EndedWinnerB;
-                table.player_b_wallet += table.player_a_bet + table.player_b_bet;
+                table.player_b_wallet += (table.player_a_bet + table.player_b_bet) as u128;
                 table.player_b_win_counter += 1;
                 table.last_play = Some(String::from("Player A folded"));
             } else {
                 table.stage = Stage::EndedWinnerA;
-                table.player_a_wallet += table.player_a_bet + table.player_b_bet;
+                table.player_a_wallet += (table.player_a_bet + table.player_b_bet) as u128;
                 table.player_a_win_counter += 1;
                 table.last_play = Some(String::from("Player B folded"));
             }
@@ -449,24 +486,14 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             deps.storage
                 .set(b"table", &serde_json::to_vec(&table).unwrap());
 
-            return Ok(HandleResponse::default());
+            Ok(HandleResponse::default())
         }
         HandleMsg::Check {} => {
             let mut table: Table =
                 serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
-            match table.stage {
-                Stage::EndedWinnerA => return Err(generic_err("The game is over.")),
-                Stage::EndedWinnerB => return Err(generic_err("The game is over.")),
-                Stage::EndedDraw => return Err(generic_err("The game is over.")),
-                Stage::WaitingForPlayersToJoin => {
-                    return Err(generic_err("The game hasn't started yet!"))
-                }
-
-                Stage::PreFlop => { /* continue */ }
-                Stage::Flop => { /* continue */ }
-                Stage::Turn => { /* continue */ }
-                Stage::River => { /* continue */ }
-            };
+            if table.stage.no_more_action() {
+                return Err(generic_err("Action hasn't started yet"));
+            }
 
             let me = Some(deps.api.human_address(&env.message.sender).unwrap());
 
@@ -497,38 +524,24 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             deps.storage
                 .set(b"table", &serde_json::to_vec(&table).unwrap());
 
-            return Ok(HandleResponse::default());
+            Ok(HandleResponse::default())
         }
         HandleMsg::Rematch {} => {
             let mut table: Table =
                 serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
-            match table.stage {
-                Stage::WaitingForPlayersToJoin => {
-                    return Err(generic_err("The game hasn't started yet!"))
-                }
-                Stage::PreFlop => return Err(generic_err("We're in a middle of a game here.")),
-                Stage::Flop => return Err(generic_err("We're in a middle of a game here.")),
-                Stage::Turn => return Err(generic_err("We're in a middle of a game here.")),
-                Stage::River => return Err(generic_err("We're in a middle of a game here.")),
-                Stage::EndedWinnerA => {
-                    if table.player_b_wallet == 0 {
-                        return Err(generic_err("Cannot play a rematch, player B lost it all!"));
-                    }
-                    // continue
-                }
-                Stage::EndedWinnerB => {
-                    if table.player_a_wallet == 0 {
-                        return Err(generic_err("Cannot play a rematch, player A lost it all!"));
-                    }
-                    // continue
-                }
-                Stage::EndedDraw => { /* continue */ }
-            };
+
+            if !table.stage.no_more_action() {
+                return Err(generic_err("You can't start a new game now!"))
+            }
 
             let me = Some(deps.api.human_address(&env.message.sender).unwrap());
 
             if me != table.player_a && me != table.player_b {
                 return Err(generic_err("You are not a player, go away!"));
+            }
+
+            if table.player_b_wallet == 0 || table.player_a_wallet == 0 {
+                return Err(generic_err("One of the players must deposit to continue playing"));
             }
 
             if me == table.player_a {
@@ -579,7 +592,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             deps.storage
                 .set(b"table", &serde_json::to_vec(&table).unwrap());
 
-            return Ok(HandleResponse::default());
+            Ok(HandleResponse::default())
         }
     }
 }
@@ -629,16 +642,16 @@ impl Table {
 
                 if player_a_rank > player_b_rank {
                     self.stage = Stage::EndedWinnerA;
-                    self.player_a_wallet += self.player_a_bet + self.player_b_bet;
+                    self.player_a_wallet += (self.player_a_bet + self.player_b_bet) as u128;
                     self.player_a_win_counter += 1;
                 } else if player_a_rank < player_b_rank {
                     self.stage = Stage::EndedWinnerB;
-                    self.player_b_wallet += self.player_a_bet + self.player_b_bet;
+                    self.player_b_wallet += (self.player_a_bet + self.player_b_bet) as u128;
                     self.player_b_win_counter += 1;
                 } else {
                     self.stage = Stage::EndedDraw;
-                    self.player_a_wallet += self.player_a_bet;
-                    self.player_b_wallet += self.player_b_bet;
+                    self.player_a_wallet += self.player_a_bet as u128;
+                    self.player_b_wallet += self.player_b_bet as u128;
                     self.tie_counter += 1;
                 }
 
