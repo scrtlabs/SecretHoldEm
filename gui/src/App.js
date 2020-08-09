@@ -43,7 +43,7 @@ const emptyState = {
   withdrawLoading: false,
   depositLoading: false,
   raiseAmount: 25000,
-  depositAmount: BIG_BLIND * MIN_TABLE_BIG_BLINDS,
+  depositAmount: 0,
   rematchLoading: false,
   player_a_wants_rematch: false,
   player_b_wants_rematch: false,
