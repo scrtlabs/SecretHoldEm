@@ -12,8 +12,8 @@ import "./App.css";
 const PokerSolver = require("pokersolver").Hand;
 
 const nf = new Intl.NumberFormat();
-const codeId = 3;
-const refreshTableStateInterval = 1000;
+const codeId = 1;
+const refreshTableStateInterval = 2000;
 
 const emptyState = {
   game_address: "",
@@ -91,11 +91,11 @@ class App extends React.Component {
       tx_encryption_seed,
       {
         init: {
-          amount: [{ amount: "0", denom: "uscrt" }],
+          amount: [{ amount: "1", denom: "uscrt" }],
           gas: "500000",
         },
         exec: {
-          amount: [{ amount: "0", denom: "uscrt" }],
+          amount: [{ amount: "1", denom: "uscrt" }],
           gas: "500000",
         },
       }

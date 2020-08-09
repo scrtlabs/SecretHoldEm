@@ -53,7 +53,7 @@ checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
 [[package]]
 name = "cosmwasm-std"
 version = "0.9.0-alpha1"
-source = "git+https://github.com/enigmampc/SecretNetwork?rev=34475bbfeaab47a6b0f4db140044f1f945824100#34475bbfeaab47a6b0f4db140044f1f945824100"
+source = "git+https://github.com/enigmampc/SecretNetwork?tag=v0.7.0#b3c77fa8a877996f7fdabc7d96361cde9b0f6484"
 dependencies = [
  "base64",
  "schemars",
@@ -65,7 +65,7 @@ dependencies = [
 [[package]]
 name = "cosmwasm-storage"
 version = "0.9.0-alpha1"
-source = "git+https://github.com/enigmampc/SecretNetwork?rev=34475bbfeaab47a6b0f4db140044f1f945824100#34475bbfeaab47a6b0f4db140044f1f945824100"
+source = "git+https://github.com/enigmampc/SecretNetwork?tag=v0.7.0#b3c77fa8a877996f7fdabc7d96361cde9b0f6484"
 dependencies = [
  "cosmwasm-std",
  "serde",
