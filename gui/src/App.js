@@ -887,8 +887,9 @@ class App extends React.Component {
               }
             >
               {this.getMe() &&
+              this.getOther() &&
               this.state.raiseAmount + this.getOther().bet ===
-                this.getMe().wallet
+                this.getMe().wallet + this.getMe().bet
                 ? "All in!"
                 : `Raise ${nf.format(this.state.raiseAmount)}`}
             </Button>
