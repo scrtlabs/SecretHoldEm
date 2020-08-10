@@ -12,7 +12,7 @@ import "./App.css";
 const PokerSolver = require("pokersolver").Hand;
 
 const nf = new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 });
-const codeId = 17;
+const codeId = 18;
 console.log("Code ID:", codeId);
 const refreshTableStateInterval = 2000;
 
@@ -765,6 +765,18 @@ class App extends React.Component {
       room = "Room: " + this.state.game_address;
     }
 
+    let minDeposit = 0;
+    let maxDeposit = 0;
+    if (this.getMe()) {
+      const alreadyInside = this.getMe().wallet + this.getMe().bet;
+
+      maxDeposit = BIG_BLIND * MAX_TABLE_BIG_BLINDS - alreadyInside;
+      maxDeposit = Math.max(maxDeposit, 0);
+
+      minDeposit = BIG_BLIND * MIN_TABLE_BIG_BLINDS - alreadyInside;
+      minDeposit = Math.max(minDeposit, 0);
+    }
+
     return (
       <div style={{ color: "white" }}>
         <Table>
@@ -824,36 +836,13 @@ class App extends React.Component {
 
                 <span
                   style={{ padding: "15px" }}
-                  hidden={
-                    !this.getMe() ||
-                    this.getMe().wallet + this.getMe().bet >
-                      BIG_BLIND * MAX_TABLE_BIG_BLINDS
-                  }
+                  hidden={!this.getMe() || minDeposit >= maxDeposit}
                 >
                   <Slider
                     style={{ margin: "10px", width: "400px" }}
-                    min={
-                      !this.getMe()
-                        ? 0
-                        : Math.max(
-                            0,
-                            BIG_BLIND * MIN_TABLE_BIG_BLINDS -
-                              (this.getMe().wallet + this.getMe().bet)
-                          )
-                    }
+                    min={minDeposit}
                     value={this.state.depositAmount}
-                    max={
-                      !this.getMe()
-                        ? 0
-                        : Math.min(
-                            this.state.myWalletBalanceUscrt,
-                            BIG_BLIND * MAX_TABLE_BIG_BLINDS -
-                              Math.min(
-                                BIG_BLIND * MAX_TABLE_BIG_BLINDS,
-                                this.getMe().wallet + this.getMe().bet
-                              )
-                          )
-                    }
+                    max={maxDeposit}
                     onChange={(v) => this.setState({ depositAmount: v })}
                   />
                 </span>
