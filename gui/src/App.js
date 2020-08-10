@@ -833,19 +833,15 @@ class App extends React.Component {
                       )} SCRT = ${nf.format(this.state.depositAmount)} credits)`
                     : ""}
                 </Button>
-
-                <span
-                  style={{ padding: "15px" }}
-                  hidden={!this.getMe() || minDeposit >= maxDeposit}
-                >
+                <div hidden={!this.getMe() || minDeposit >= maxDeposit}>
                   <Slider
-                    style={{ margin: "10px", width: "400px" }}
+                    style={{ width: "400px" }}
                     min={minDeposit}
                     value={this.state.depositAmount}
                     max={maxDeposit}
                     onChange={(v) => this.setState({ depositAmount: v })}
                   />
-                </span>
+                </div>
               </div>
             </div>
 
