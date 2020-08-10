@@ -250,13 +250,13 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             Ok(HandleResponse::default())
         }
         HandleMsg::Withdraw {} => {
-            let player_name = deps.api.human_address(&env.message.sender)?;
+            let player_name = Some(deps.api.human_address(&env.message.sender)?);
             let contract_address = deps.api.human_address(&env.contract.address)?;
 
             let mut table: Table =
                 serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
 
-            if player_name == table.player_b.unwrap() && table.player_b_wallet != 0 {
+            if player_name == table.player_b && table.player_b_wallet != 0 {
                 //fold player b
                 if !table.stage.no_more_action() {
                     table.stage = Stage::EndedWinnerA;
@@ -265,13 +265,17 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                     table.last_play = Some(String::from("Player B folded"));
                 }
                 let amount = table.player_b_wallet;
+                table.player_b_wallet = 0;
+
+                deps.storage
+                    .set(b"table", &serde_json::to_vec(&table).unwrap());
 
                 return Ok(winner_winner_chicken_dinner(
                     contract_address,
-                    player_name,
+                    player_name.unwrap(),
                     Uint128(amount as u128),
                 ));
-            } else if player_name == table.player_a.unwrap() && table.player_a_wallet != 0 {
+            } else if player_name == table.player_a && table.player_a_wallet != 0 {
                 //fold player a
                 if !table.stage.no_more_action() {
                     table.stage = Stage::EndedWinnerB;
@@ -280,10 +284,14 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                     table.last_play = Some(String::from("Player B folded"));
                 }
                 let amount = table.player_a_wallet;
+                table.player_a_wallet = 0;
+
+                deps.storage
+                    .set(b"table", &serde_json::to_vec(&table).unwrap());
 
                 return Ok(winner_winner_chicken_dinner(
                     contract_address,
-                    player_name,
+                    player_name.unwrap(),
                     Uint128(amount as u128),
                 ));
             }
