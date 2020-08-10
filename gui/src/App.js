@@ -677,7 +677,11 @@ class App extends React.Component {
             <center hidden={isLoading || this.state.myWalletBalanceUscrt === 0}>
               <Slider
                 style={{ width: "400px" }}
-                min={MIN_TABLE_BIG_BLINDS * BIG_BLIND}
+                min={
+                  this.state.myWalletBalanceUscrt === 0
+                    ? 0
+                    : MIN_TABLE_BIG_BLINDS * BIG_BLIND
+                }
                 value={this.state.depositAmount}
                 max={Math.min(
                   this.state.myWalletBalanceUscrt,

@@ -261,6 +261,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 if !table.stage.no_more_action() {
                     table.stage = Stage::EndedWinnerA;
                     table.player_a_wallet += (table.player_a_bet + table.player_b_bet) as i64;
+                    table.player_a_bet = 0;
+                    table.player_b_bet = 0;
                     table.player_a_win_counter += 1;
                     table.last_play = Some(String::from("Player B folded"));
                 }
@@ -280,6 +282,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 if !table.stage.no_more_action() {
                     table.stage = Stage::EndedWinnerB;
                     table.player_b_wallet += (table.player_a_bet + table.player_b_bet) as i64;
+                    table.player_a_bet = 0;
+                    table.player_b_bet = 0;
                     table.player_b_win_counter += 1;
                     table.last_play = Some(String::from("Player B folded"));
                 }
@@ -516,6 +520,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 table.last_play = Some(String::from("Player B folded"));
             }
 
+            table.player_a_bet = 0;
+            table.player_b_bet = 0;
+
             deps.storage
                 .set(b"table", &serde_json::to_vec(&table).unwrap());
 
@@ -689,6 +696,9 @@ impl Table {
                     self.player_b_wallet += (self.player_b_bet) as i64;
                     self.tie_counter += 1;
                 }
+
+                self.player_a_bet = 0;
+                self.player_b_bet = 0;
 
                 self.player_a_hand = vec![deck[PLAYER_A_FIRST_CARD], deck[PLAYER_A_SECOND_CARD]];
                 self.player_b_hand = vec![deck[PLAYER_B_FIRST_CARD], deck[PLAYER_B_SECOND_CARD]];
