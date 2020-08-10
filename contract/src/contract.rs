@@ -103,14 +103,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
                 big_blind,
             };
 
-            let table_yo = match serde_json::to_vec(&table) {
-                Err(e) => {
-                    return Err(generic_err(format!("Failed to serialize table: {:?}", e))); }
-                Ok(v) => v,
-            };
-
             deps.storage
-                .set(b"table", &table_yo);
+                .set(b"table", &serde_json::to_vec(&table).unwrap());
 
             Ok(InitResponse::default())
         }
@@ -204,7 +198,7 @@ pub fn winner_winner_chicken_dinner(
     }
 }
 
-fn can_deposit(env: &Env, table: &Table, current_amount: u64) -> StdResult<u64> {
+fn can_deposit(env: &Env, table: &Table, current_amount: u64) -> StdResult<i64> {
     let deposit: Uint128;
 
     if env.message.sent_funds.len() == 0 {
@@ -223,7 +217,7 @@ fn can_deposit(env: &Env, table: &Table, current_amount: u64) -> StdResult<u64> 
             return Err(generic_err("GTFO DIRTY DEEP STACKER"));
         }
     }
-    Ok(deposit.u128() as u64)
+    Ok(deposit.u128() as i64)
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
@@ -243,10 +237,10 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
             if player_name == pb {
                 let deposit = can_deposit(&env, &table, table.player_b_wallet as u64)?;
-                table.player_b_wallet += deposit as i64;
+                table.player_b_wallet += deposit;
             } else if player_name == pa {
                 let deposit = can_deposit(&env, &table, table.player_a_wallet as u64)?;
-                table.player_a_wallet += deposit as i64;
+                table.player_a_wallet += deposit;
             } else {
                 return Err(generic_err(
                     "You are not a player, or you are broke! Either way, go away!",
@@ -325,7 +319,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                     .unwrap();
 
                 table.player_a = Some(a_human_addr.clone());
-                table.player_a_wallet = deposit as i64;
+                table.player_a_wallet = deposit;
                 table.starter = Some(a_human_addr.clone());
                 table.turn = Some(a_human_addr.clone());
                 deps.storage
@@ -363,7 +357,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 .unwrap();
 
             table.player_b = Some(b_human_addr);
-            table.player_b_wallet = deposit as i64;
+            table.player_b_wallet = deposit;
 
             table.stage = table.stage.next_round();
             table.starter = Some(a_human_addr.clone());
@@ -375,7 +369,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             Ok(HandleResponse::default())
         }
         HandleMsg::Raise { amount } => {
-
             let mut table: Table =
                 serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
             if table.stage.no_more_action() {

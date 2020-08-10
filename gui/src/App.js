@@ -12,7 +12,7 @@ import "./App.css";
 const PokerSolver = require("pokersolver").Hand;
 
 const nf = new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 });
-const codeId = 14;
+const codeId = 16;
 console.log("Code ID:", codeId);
 const refreshTableStateInterval = 2000;
 
@@ -100,12 +100,12 @@ class App extends React.Component {
       tx_encryption_seed,
       {
         init: {
-          amount: [{ amount: "160000", denom: "uscrt" }],
-          gas: "160000",
+          amount: [{ amount: "200000", denom: "uscrt" }],
+          gas: "200000",
         },
         exec: {
-          amount: [{ amount: "160000", denom: "uscrt" }],
-          gas: "160000",
+          amount: [{ amount: "200000", denom: "uscrt" }],
+          gas: "200000",
         },
       }
     );
@@ -304,7 +304,11 @@ class App extends React.Component {
       console.log("createRoom", e);
     }
     setTimeout(
-      () => this.setState({ new_room_name: "", createLoading: false }),
+      () =>
+        this.setState({
+          new_room_name: "",
+          createLoading: false,
+        }),
       refreshTableStateInterval
     );
   }
@@ -331,10 +335,12 @@ class App extends React.Component {
           join: { secret },
         },
         "",
-        {
-          denom: "uscrt",
-          amount: this.state.depositAmount,
-        }
+        [
+          {
+            amount: `${this.state.depositAmount}`,
+            denom: "uscrt",
+          },
+        ]
       );
     } catch (e) {
       console.log("join", e);
@@ -448,7 +454,7 @@ class App extends React.Component {
           top_up: {},
         },
         "",
-        { denom: "uscrt", amount: this.state.depositAmount }
+        [{ amount: `${this.state.depositAmount}`, denom: "uscrt" }]
       );
     } catch (e) {
       console.log("deposit", e);
@@ -658,7 +664,7 @@ class App extends React.Component {
               loading={isLoading}
               disabled={
                 isLoading ||
-                typeof this.state.myWalletBalanceUscrt === 0 ||
+                this.state.myWalletBalanceUscrt === 0 ||
                 this.state.depositAmount === 0
               }
               onClick={this.joinRoom.bind(this)}
@@ -818,8 +824,11 @@ class App extends React.Component {
                     min={
                       !this.getMe()
                         ? 0
-                        : BIG_BLIND * MIN_TABLE_BIG_BLINDS -
-                          (this.getMe().wallet + this.getMe().bet)
+                        : Math.max(
+                            0,
+                            BIG_BLIND * MIN_TABLE_BIG_BLINDS -
+                              (this.getMe().wallet + this.getMe().bet)
+                          )
                     }
                     value={this.state.depositAmount}
                     max={
