@@ -227,18 +227,15 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 ) -> HandleResult {
     return match msg {
         HandleMsg::TopUp {} => {
-            let player_name = deps.api.human_address(&env.message.sender)?;
+            let me = Some(deps.api.human_address(&env.message.sender)?);
 
             let mut table: Table =
                 serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
 
-            let pb = (&table).player_b.clone().unwrap_or(HumanAddr::default());
-            let pa = (&table).player_a.clone().unwrap_or(HumanAddr::default());
-
-            if player_name == pb {
+            if me == table.player_b {
                 let deposit = can_deposit(&env, &table, table.player_b_wallet as u64)?;
                 table.player_b_wallet += deposit;
-            } else if player_name == pa {
+            } else if me == table.player_a {
                 let deposit = can_deposit(&env, &table, table.player_a_wallet as u64)?;
                 table.player_a_wallet += deposit;
             } else {
@@ -246,6 +243,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                     "You are not a player, or you are broke! Either way, go away!",
                 ));
             }
+
+            deps.storage
+                .set(b"table", &serde_json::to_vec(&table).unwrap());
 
             Ok(HandleResponse::default())
         }
