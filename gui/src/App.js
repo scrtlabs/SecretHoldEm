@@ -12,7 +12,7 @@ import "./App.css";
 const PokerSolver = require("pokersolver").Hand;
 
 const nf = new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 });
-const codeId = 16;
+const codeId = 17;
 console.log("Code ID:", codeId);
 const refreshTableStateInterval = 2000;
 
@@ -674,7 +674,7 @@ class App extends React.Component {
                 this.state.depositAmount / 1000000
               )} SCRT = ${nf.format(this.state.depositAmount)} credits)`}
             </Button>
-            <center>
+            <center hidden={isLoading || this.state.myWalletBalanceUscrt === 0}>
               <Slider
                 style={{ width: "400px" }}
                 min={MIN_TABLE_BIG_BLINDS * BIG_BLIND}
@@ -773,7 +773,7 @@ class App extends React.Component {
               padding: 10,
             }}
           >
-            <div style={{ width: "600px" }}>
+            <div style={{ width: "700px" }}>
               <div
                 style={{
                   position: "relative",
@@ -818,9 +818,16 @@ class App extends React.Component {
                     : ""}
                 </Button>
 
-                <span style={{ padding: 10 }} hidden={!this.getMe()}>
+                <span
+                  style={{ padding: "15px" }}
+                  hidden={
+                    !this.getMe() ||
+                    this.getMe().wallet + this.getMe().bet >
+                      BIG_BLIND * MAX_TABLE_BIG_BLINDS
+                  }
+                >
                   <Slider
-                    style={{ width: "400px" }}
+                    style={{ margin: "10px", width: "400px" }}
                     min={
                       !this.getMe()
                         ? 0
@@ -837,7 +844,10 @@ class App extends React.Component {
                         : Math.min(
                             this.state.myWalletBalanceUscrt,
                             BIG_BLIND * MAX_TABLE_BIG_BLINDS -
-                              (this.getMe().wallet + this.getMe().bet)
+                              Math.min(
+                                BIG_BLIND * MAX_TABLE_BIG_BLINDS,
+                                this.getMe().wallet + this.getMe().bet
+                              )
                           )
                     }
                     onChange={(v) => this.setState({ depositAmount: v })}
