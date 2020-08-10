@@ -285,7 +285,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                     table.player_a_bet = 0;
                     table.player_b_bet = 0;
                     table.player_b_win_counter += 1;
-                    table.last_play = Some(String::from("Player B folded"));
+                    table.last_play = Some(String::from("Player A folded"));
                 }
                 let amount = table.player_a_wallet;
                 table.player_a_wallet = 0;
