@@ -12,7 +12,7 @@ import "./App.css";
 const PokerSolver = require("pokersolver").Hand;
 
 const nf = new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 });
-const codeId = 18;
+const codeId = 19;
 console.log("Code ID:", codeId);
 const refreshTableStateInterval = 2000;
 
