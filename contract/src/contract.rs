@@ -1,7 +1,7 @@
 use cosmwasm_std::{
     generic_err, Api, BankMsg, Binary, CanonicalAddr, Coin, CosmosMsg, Env, Extern, HandleResponse,
-    HandleResult, HumanAddr, InitResponse, InitResult, MigrateResponse, Querier, QueryResult,
-    StdResult, Storage, Uint128,
+    HandleResult, HumanAddr, InitResponse, InitResult, Querier, QueryResult, StdResult, Storage,
+    Uint128,
 };
 use rand::{seq::SliceRandom, SeedableRng};
 use rand_chacha::ChaChaRng;
@@ -791,21 +791,4 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
             ));
         }
     }
-}
-
-/////////////////////////////// Migrate ///////////////////////////////
-// Isn't supported by the Secret Network, but we must declare this to
-// comply with CosmWasm 0.9 API
-///////////////////////////////////////////////////////////////////////
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum MigrateMsg {}
-
-pub fn migrate<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
-    _env: Env,
-    _msg: MigrateMsg,
-) -> StdResult<MigrateResponse> {
-    Ok(MigrateResponse::default())
 }
