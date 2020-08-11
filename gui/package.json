@@ -10,6 +10,7 @@
     "react": "16.13.1",
     "react-casino": "0.2.6",
     "react-dom": "16.13.1",
+    "react-notifications": "1.6.0",
     "react-scripts": "3.4.1",
     "secretjs": "0.9.13",
     "semantic-ui-css": "2.4.1",

@@ -4,10 +4,15 @@ import * as bip39 from "bip39";
 import { Hand, Table, Card } from "react-casino";
 import { Button, Form } from "semantic-ui-react";
 import Slider from "rc-slider";
+import {
+  NotificationContainer,
+  NotificationManager,
+} from "react-notifications";
 
 import "rc-slider/assets/index.css";
 import "semantic-ui-css/semantic.min.css";
 import "./App.css";
+import "react-notifications/lib/notifications.css";
 
 const PokerSolver = require("pokersolver").Hand;
 
@@ -126,6 +131,7 @@ class App extends React.Component {
         });
       } catch (e) {
         console.log("refreshAllRooms", e);
+        NotificationManager.error("refreshAllRooms", e.message, 5000);
       }
     };
     setTimeout(refreshAllRooms, 0);
@@ -180,6 +186,7 @@ class App extends React.Component {
         }
       } catch (e) {
         console.log("refreshMyHand", e);
+        NotificationManager.error("refreshMyHand", e.message, 5000);
       }
     };
     setTimeout(refreshMyHand, 0);
@@ -218,6 +225,7 @@ class App extends React.Component {
         }
       } catch (e) {
         console.log("refreshMyWalletBalance", e);
+        NotificationManager.error("refreshMyWalletBalance", e.message, 5000);
       }
     };
     setTimeout(refreshMyWalletBalance, 0);
@@ -283,6 +291,7 @@ class App extends React.Component {
         });
       } catch (e) {
         console.log("refreshTableState", e);
+        NotificationManager.error("refreshTableState", e.message, 5000);
       }
     };
 
@@ -302,6 +311,7 @@ class App extends React.Component {
       );
     } catch (e) {
       console.log("createRoom", e);
+      NotificationManager.error("createRoom", e.message, 5000);
     }
     setTimeout(
       () =>
@@ -344,6 +354,7 @@ class App extends React.Component {
       );
     } catch (e) {
       console.log("join", e);
+      NotificationManager.error("join", e.message, 5000);
     }
 
     setTimeout(
@@ -360,6 +371,7 @@ class App extends React.Component {
       });
     } catch (e) {
       console.log("fold", e);
+      NotificationManager.error("fold", e.message, 5000);
     }
 
     setTimeout(
@@ -376,6 +388,7 @@ class App extends React.Component {
       });
     } catch (e) {
       console.log("check", e);
+      NotificationManager.error("check", e.message, 5000);
     }
 
     setTimeout(
@@ -392,6 +405,7 @@ class App extends React.Component {
       });
     } catch (e) {
       console.log("call", e);
+      NotificationManager.error("call", e.message, 5000);
     }
 
     setTimeout(
@@ -408,6 +422,7 @@ class App extends React.Component {
       });
     } catch (e) {
       console.log("raise", e);
+      NotificationManager.error("raise", e.message, 5000);
     }
     setTimeout(
       () => this.setState({ raiseLoading: false, raiseAmount: 25000 }),
@@ -423,6 +438,7 @@ class App extends React.Component {
       });
     } catch (e) {
       console.log("rematch", e);
+      NotificationManager.error("rematch", e.message, 5000);
     }
     setTimeout(
       () => this.setState({ rematchLoading: false }),
@@ -438,6 +454,7 @@ class App extends React.Component {
       });
     } catch (e) {
       console.log("withdraw", e);
+      NotificationManager.error("withdraw", e.message, 5000);
     }
     setTimeout(
       () => this.setState({ withdrawLoading: false }),
@@ -458,6 +475,7 @@ class App extends React.Component {
       );
     } catch (e) {
       console.log("deposit", e);
+      NotificationManager.error("deposit", e.message, 5000);
     }
     setTimeout(
       () => this.setState({ depositLoading: false, depositAmount: 0 }),
@@ -593,6 +611,7 @@ class App extends React.Component {
               </center>
             </div>
           </Table>
+          <NotificationContainer />
         </div>
       );
     }
@@ -1110,6 +1129,7 @@ class App extends React.Component {
             cards={this.state.player_b_hand.map((c) => stateCardToReactCard(c))}
           />
         </Table>
+        <NotificationContainer />
       </div>
     );
   }
