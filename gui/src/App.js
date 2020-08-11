@@ -1035,7 +1035,11 @@ class App extends React.Component {
               this.state.raiseAmount + this.getOther().bet ===
                 this.getMe().wallet + this.getMe().bet
                 ? "All in!"
-                : `Raise ${nf.format(this.state.raiseAmount)}`}
+                : `${
+                    this.getMe().bet === 0 && this.getOther().bet === 0
+                      ? "Bet"
+                      : "Raise"
+                  } ${nf.format(this.state.raiseAmount)}`}
             </Button>
             <Button
               loading={this.state.foldLoading}
