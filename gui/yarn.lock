@@ -9501,10 +9501,10 @@ schema-utils@^2.5.0, schema-utils@^2.6.0, schema-utils@^2.6.1, schema-utils@^2.6
     ajv "^6.12.0"
     ajv-keywords "^3.4.1"
 
-secretjs@0.9.14:
-  version "0.9.14"
-  resolved "https://registry.yarnpkg.com/secretjs/-/secretjs-0.9.14.tgz#78b98fa8364d8e624a91f58aa3d65541e5f661a3"
-  integrity sha512-tj9CXjK+gvU7taT1Vh3hHoXcIDLAwJdBmSQAYx0ACWY/B3oJ1i9YGDhs8AYPjoV0BYRVJkb3oGckjNQtnuPCqg==
+secretjs@0.9.15:
+  version "0.9.15"
+  resolved "https://registry.yarnpkg.com/secretjs/-/secretjs-0.9.15.tgz#8e8e2be9ebd37d64b5f78df458e2235ffab41f53"
+  integrity sha512-eBtmgOzSsNj8COMWNgXkHn9HQA0PTYzVgSVwACOLkvDGI9dQcAQkx4RZ89s1KLVjb68IOq6D6x2hHyOHi2QIBw==
   dependencies:
     "@iov/crypto" "^2.1.0"
     "@iov/encoding" "^2.1.0"
