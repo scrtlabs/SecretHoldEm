@@ -12,7 +12,7 @@
     "react-dom": "16.13.1",
     "react-notifications": "1.6.0",
     "react-scripts": "3.4.1",
-    "secretjs": "0.9.16",
+    "secretjs": "0.9.17",
     "semantic-ui-css": "2.4.1",
     "semantic-ui-react": "0.88.2"
   },
