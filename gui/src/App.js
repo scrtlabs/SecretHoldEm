@@ -205,7 +205,7 @@ class App extends React.Component {
               <span>
                 (No funds - Go get some{" "}
                 <a
-                  href="https://faucet.pub.testnet.enigma.co"
+                  href="https://faucet.pub.testnet2.enigma.co"
                   rel="noopener noreferrer"
                   target="_blank"
                 >
