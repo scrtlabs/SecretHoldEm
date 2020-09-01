@@ -1,7 +1,6 @@
 use cosmwasm_std::{
-    generic_err, Api, BankMsg, Binary, CanonicalAddr, Coin, CosmosMsg, Env, Extern, HandleResponse,
-    HandleResult, HumanAddr, InitResponse, InitResult, Querier, QueryResult, StdResult, Storage,
-    Uint128,
+    Api, BankMsg, Binary, Coin, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr,
+    InitResponse, InitResult, Querier, QueryResult, StdError, StdResult, Storage, Uint128,
 };
 use rand::{seq::SliceRandom, SeedableRng};
 use rand_chacha::ChaChaRng;
@@ -202,19 +201,19 @@ fn can_deposit(env: &Env, table: &Table, current_amount: u64) -> StdResult<i64> 
     let deposit: Uint128;
 
     if env.message.sent_funds.len() == 0 {
-        return Err(generic_err("SHOW ME THE MONEY"));
+        return Err(StdError::generic_err("SHOW ME THE MONEY"));
     } else {
         if env.message.sent_funds[0].denom != "uscrt" {
-            return Err(generic_err("WRONG MONEY"));
+            return Err(StdError::generic_err("WRONG MONEY"));
         }
         deposit = env.message.sent_funds[0].amount;
 
         if deposit.u128() as u64 + current_amount < table.min_credit {
-            return Err(generic_err("GTFO DIRTY SHORT STACKER"));
+            return Err(StdError::generic_err("GTFO DIRTY SHORT STACKER"));
         }
 
         if deposit.u128() as u64 + current_amount > table.max_credit {
-            return Err(generic_err("GTFO DIRTY DEEP STACKER"));
+            return Err(StdError::generic_err("GTFO DIRTY DEEP STACKER"));
         }
     }
     Ok(deposit.u128() as i64)
@@ -227,7 +226,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 ) -> HandleResult {
     return match msg {
         HandleMsg::TopUp {} => {
-            let me = Some(deps.api.human_address(&env.message.sender)?);
+            let me = Some(env.message.sender.clone());
 
             let mut table: Table =
                 serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
@@ -239,7 +238,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 let deposit = can_deposit(&env, &table, table.player_a_wallet as u64)?;
                 table.player_a_wallet += deposit;
             } else {
-                return Err(generic_err(
+                return Err(StdError::generic_err(
                     "You are not a player, or you are broke! Either way, go away!",
                 ));
             }
@@ -250,8 +249,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             Ok(HandleResponse::default())
         }
         HandleMsg::Withdraw {} => {
-            let player_name = Some(deps.api.human_address(&env.message.sender)?);
-            let contract_address = deps.api.human_address(&env.contract.address)?;
+            let player_name = Some(env.message.sender.clone());
 
             let mut table: Table =
                 serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
@@ -273,7 +271,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                     .set(b"table", &serde_json::to_vec(&table).unwrap());
 
                 return Ok(winner_winner_chicken_dinner(
-                    contract_address,
+                    env.contract.address,
                     player_name.unwrap(),
                     Uint128(amount as u128),
                 ));
@@ -294,13 +292,13 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                     .set(b"table", &serde_json::to_vec(&table).unwrap());
 
                 return Ok(winner_winner_chicken_dinner(
-                    contract_address,
+                    env.contract.address,
                     player_name.unwrap(),
                     Uint128(amount as u128),
                 ));
             }
 
-            Err(generic_err(
+            Err(StdError::generic_err(
                 "You are not a player, or you are broke! Either way, go away!",
             ))
         }
@@ -310,30 +308,20 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
             let deposit = can_deposit(&env, &table, 0)?;
 
-            let player_a = deps.storage.get(b"player_a");
-            let player_b = deps.storage.get(b"player_b");
-
-            if player_a.is_some() && player_b.is_some() {
-                return Err(generic_err("Table is full."));
+            if table.player_a.is_some() && table.player_b.is_some() {
+                return Err(StdError::generic_err("Table is full."));
             }
 
-            let player_name = env.message.sender.as_slice();
             let player_secret = &secret.to_be_bytes();
 
-            if player_a.is_none() {
+            if table.player_a.is_none() {
                 // player a - just store
-                deps.storage.set(b"player_a", player_name);
                 deps.storage.set(b"player_a_secret", player_secret);
 
-                let a_human_addr = deps
-                    .api
-                    .human_address(&CanonicalAddr(Binary(player_name.to_vec())))
-                    .unwrap();
-
-                table.player_a = Some(a_human_addr.clone());
+                table.player_a = Some(env.message.sender.clone());
                 table.player_a_wallet = deposit;
-                table.starter = Some(a_human_addr.clone());
-                table.turn = Some(a_human_addr.clone());
+                table.starter = Some(env.message.sender.clone());
+                table.turn = Some(env.message.sender.clone());
                 deps.storage
                     .set(b"table", &serde_json::to_vec(&table).unwrap());
 
@@ -341,8 +329,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             }
 
             // player b - we can now shuffle the deck
-
-            deps.storage.set(b"player_b", player_name);
             deps.storage.set(b"player_b_secret", player_secret);
 
             let player_a_secret = deps.storage.get(b"player_a_secret").unwrap();
@@ -359,21 +345,12 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             deps.storage
                 .set(b"deck", &serde_json::to_vec(&deck).unwrap());
 
-            let a_human_addr = deps
-                .api
-                .human_address(&CanonicalAddr(Binary(player_a.expect("Error"))))
-                .unwrap();
-            let b_human_addr = deps
-                .api
-                .human_address(&CanonicalAddr(Binary(player_name.to_vec())))
-                .unwrap();
-
-            table.player_b = Some(b_human_addr);
+            table.player_b = Some(env.message.sender.clone());
             table.player_b_wallet = deposit;
 
             table.stage = table.stage.next_round();
-            table.starter = Some(a_human_addr.clone());
-            table.turn = Some(a_human_addr.clone());
+            table.starter = table.player_a.clone();
+            table.turn = table.player_a.clone();
 
             deps.storage
                 .set(b"table", &serde_json::to_vec(&table).unwrap());
@@ -384,28 +361,30 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             let mut table: Table =
                 serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
             if table.stage.no_more_action() {
-                return Err(generic_err("Action hasn't started yet"));
+                return Err(StdError::generic_err("Action hasn't started yet"));
             }
 
-            let me = Some(deps.api.human_address(&env.message.sender).unwrap());
+            let me = Some(env.message.sender.clone());
 
             if me != table.player_a && me != table.player_b {
-                return Err(generic_err("You are not a player, go away!"));
+                return Err(StdError::generic_err("You are not a player, go away!"));
             }
 
             if me != table.turn {
-                return Err(generic_err("It's not your turn."));
+                return Err(StdError::generic_err("It's not your turn."));
             }
 
             if me == table.player_a {
                 if table.player_a_wallet < amount as i64 {
-                    return Err(generic_err("You cannot raise more than you have!"));
+                    return Err(StdError::generic_err(
+                        "You cannot raise more than you have!",
+                    ));
                 }
 
                 // I'm player A
                 table.player_a_wallet -= (table.player_b_bet + amount - table.player_a_bet) as i64;
                 if table.player_a_wallet < 0 {
-                    return Err(generic_err(
+                    return Err(StdError::generic_err(
                         "You don't have enough credits to raise by that much.",
                     ));
                 }
@@ -419,12 +398,14 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             } else {
                 // I'm player B
                 if table.player_b_wallet < amount as i64 {
-                    return Err(generic_err("You cannot raise more than you have!"));
+                    return Err(StdError::generic_err(
+                        "You cannot raise more than you have!",
+                    ));
                 }
 
                 table.player_b_wallet -= (table.player_a_bet + amount - table.player_b_bet) as i64;
                 if table.player_b_wallet < 0 {
-                    return Err(generic_err(
+                    return Err(StdError::generic_err(
                         "You don't have enough credits to raise by that much.",
                     ));
                 }
@@ -446,24 +427,24 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             let mut table: Table =
                 serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
             if table.stage.no_more_action() {
-                return Err(generic_err("Action hasn't started yet"));
+                return Err(StdError::generic_err("Action hasn't started yet"));
             }
 
-            let me = Some(deps.api.human_address(&env.message.sender).unwrap());
+            let me = Some(env.message.sender.clone());
 
             if me != table.player_a && me != table.player_b {
-                return Err(generic_err("You are not a player, go away!"));
+                return Err(StdError::generic_err("You are not a player, go away!"));
             }
 
             if me != table.turn {
-                return Err(generic_err("It's not your turn."));
+                return Err(StdError::generic_err("It's not your turn."));
             }
 
             if me == table.player_a {
                 // I'm player A
                 table.player_a_wallet -= (table.player_b_bet - table.player_a_bet) as i64;
                 if table.player_a_wallet < 0 {
-                    return Err(generic_err(
+                    return Err(StdError::generic_err(
                         "You cannot Call, your bet is bigger or equals to the other player's bet.",
                     ));
                 }
@@ -474,7 +455,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 // I'm player B
                 table.player_b_wallet -= (table.player_a_bet - table.player_b_bet) as i64;
                 if table.player_b_wallet < 0 {
-                    return Err(generic_err(
+                    return Err(StdError::generic_err(
                         "You cannot Call, your bet is bigger or equals to the other player's bet.",
                     ));
                 }
@@ -495,17 +476,17 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             let mut table: Table =
                 serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
             if table.stage.no_more_action() {
-                return Err(generic_err("Action hasn't started yet"));
+                return Err(StdError::generic_err("Action hasn't started yet"));
             }
 
-            let me = Some(deps.api.human_address(&env.message.sender).unwrap());
+            let me = Some(env.message.sender.clone());
 
             if me != table.player_a && me != table.player_b {
-                return Err(generic_err("You are not a player, go away!"));
+                return Err(StdError::generic_err("You are not a player, go away!"));
             }
 
             if me != table.turn {
-                return Err(generic_err("It's not your turn."));
+                return Err(StdError::generic_err("It's not your turn."));
             }
 
             if me == table.player_a {
@@ -532,21 +513,23 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             let mut table: Table =
                 serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
             if table.stage.no_more_action() {
-                return Err(generic_err("Action hasn't started yet"));
+                return Err(StdError::generic_err("Action hasn't started yet"));
             }
 
-            let me = Some(deps.api.human_address(&env.message.sender).unwrap());
+            let me = Some(env.message.sender.clone());
 
             if me != table.player_a && me != table.player_b {
-                return Err(generic_err("You are not a player, go away!"));
+                return Err(StdError::generic_err("You are not a player, go away!"));
             }
 
             if me != table.turn {
-                return Err(generic_err("It's not your turn."));
+                return Err(StdError::generic_err("It's not your turn."));
             }
 
             if table.player_a_bet != table.player_b_bet {
-                return Err(generic_err("You cannot check, must Call, Raise or Fold."));
+                return Err(StdError::generic_err(
+                    "You cannot check, must Call, Raise or Fold.",
+                ));
             }
 
             if me == table.player_a {
@@ -571,17 +554,17 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 serde_json::from_slice(&deps.storage.get(b"table").unwrap()).unwrap();
 
             if !table.stage.no_more_action() {
-                return Err(generic_err("You can't start a new game now!"));
+                return Err(StdError::generic_err("You can't start a new game now!"));
             }
 
-            let me = Some(deps.api.human_address(&env.message.sender).unwrap());
+            let me = Some(env.message.sender.clone());
 
             if me != table.player_a && me != table.player_b {
-                return Err(generic_err("You are not a player, go away!"));
+                return Err(StdError::generic_err("You are not a player, go away!"));
             }
 
             if table.player_b_wallet == 0 || table.player_a_wallet == 0 {
-                return Err(generic_err(
+                return Err(StdError::generic_err(
                     "One of the players must deposit to continue playing",
                 ));
             }
@@ -753,7 +736,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
 
             let player_a_secret = match deps.storage.get(b"player_a_secret") {
                 None => {
-                    return Err(generic_err(
+                    return Err(StdError::generic_err(
                         "You are not a player, but there are still two seats left.",
                     ))
                 }
@@ -761,7 +744,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
             };
             let player_b_secret = match deps.storage.get(b"player_b_secret") {
                 None => {
-                    return Err(generic_err(
+                    return Err(StdError::generic_err(
                         "You are not a player, but there is still one seat left.",
                     ))
                 }
@@ -777,7 +760,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
                 first_card_index = PLAYER_B_FIRST_CARD;
                 second_card_index = PLAYER_B_SECOND_CARD;
             } else {
-                return Err(generic_err("You are not a player, go away!"));
+                return Err(StdError::generic_err("You are not a player, go away!"));
             }
 
             let deck: Vec<Card> =
