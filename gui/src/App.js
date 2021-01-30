@@ -17,7 +17,7 @@ import "react-notifications/lib/notifications.css";
 const PokerSolver = require("pokersolver").Hand;
 
 const nf = new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 });
-const codeId = 4;
+const codeId = 1071;
 console.log("Code ID:", codeId);
 const refreshTableStateInterval = 2000;
 
@@ -99,7 +99,7 @@ class App extends React.Component {
       "secret"
     );
     const secretJsClient = new SecretJS.SigningCosmWasmClient(
-      "https://bootstrap.pub.testnet2.enigma.co",
+      "https://bootstrap.secrettestnet.io",
       myWalletAddress,
       (signBytes) => signingPen.sign(signBytes),
       tx_encryption_seed,
@@ -205,7 +205,7 @@ class App extends React.Component {
               <span>
                 (No funds - Go get some{" "}
                 <a
-                  href="https://faucet.pub.testnet2.enigma.co"
+                  href="https://faucet.secrettestnet.io"
                   rel="noopener noreferrer"
                   target="_blank"
                 >

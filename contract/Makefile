@@ -17,7 +17,7 @@ clean:
 	-rm -f ./contract.wasm ./contract.wasm.gz
 
 store: build
-	secretcli tx compute store contract.wasm.gz --from lll -y --gas 10000000 --source "https://github.com/enigmampc/SecretHoldEm/blob/$(shell git show --oneline -s | cut -f 1 -d ' ')/contract" -b block
+	secretcli tx compute store contract.wasm.gz --from yo -y --gas 10000000 --source "https://github.com/enigmampc/SecretHoldEm/blob/$(shell git show --oneline -s | cut -f 1 -d ' ')/contract" -b block
 
 sim-play: build
 	./sim.sh
