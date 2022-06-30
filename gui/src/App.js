@@ -99,7 +99,7 @@ class App extends React.Component {
       "secret"
     );
     const secretJsClient = new SecretJS.SigningCosmWasmClient(
-      "https://pulsar-2-lcd.scrtlabs.com",
+      "https://api.pulsar.scrttestnet.com",
       myWalletAddress,
       (signBytes) => signingPen.sign(signBytes),
       tx_encryption_seed,
